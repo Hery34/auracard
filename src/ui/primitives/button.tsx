@@ -1,18 +1,52 @@
-import type { ButtonHTMLAttributes } from "react";
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
+import { Slot } from "@radix-ui/react-slot";
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" };
+import { cn } from "@/ui/lib/utils";
 
-const VARIANTS = {
-  primary: "bg-neutral-900 text-white hover:bg-neutral-700",
-  secondary: "border border-neutral-700 bg-white text-neutral-900 hover:bg-neutral-100",
-} as const;
+const buttonVariants = cva(
+  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-base font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:ring-3 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        outline:
+          "border-input bg-input/30 hover:bg-input/50 hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
+      },
+      size: {
+        default: "min-h-11 min-w-11 gap-1.5 px-4 py-2",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  },
+);
 
-export function Button({ variant = "primary", className = "", type = "button", ...props }: ButtonProps) {
+function Button({
+  className,
+  variant = "default",
+  size = "default",
+  asChild = false,
+  type,
+  ...props
+}: React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean;
+  }) {
+  const Comp = asChild ? Slot : "button";
+
   return (
-    <button
-      type={type}
-      className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-4 py-2 font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-70 ${VARIANTS[variant]} ${className}`}
+    <Comp
+      data-slot="button"
+      data-variant={variant}
+      data-size={size}
+      type={asChild ? type : (type ?? "button")}
+      className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
   );
 }
+
+export { Button, buttonVariants };

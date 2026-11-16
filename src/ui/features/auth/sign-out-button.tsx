@@ -4,7 +4,7 @@ import { Button } from "@/ui/primitives/button";
 export function SignOutButton() {
   return (
     <form action={signOutAction}>
-      <Button type="submit" variant="secondary">
+      <Button type="submit" variant="outline">
         Se déconnecter
       </Button>
     </form>

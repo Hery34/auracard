@@ -1,6 +1,7 @@
 import type { InputHTMLAttributes } from "react";
 
 import { Input } from "@/ui/primitives/input";
+import { Label } from "@/ui/primitives/label";
 
 type FieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, "id" | "name"> & {
   name: string;
@@ -14,9 +15,7 @@ export function Field({ name, label, error, ...inputProps }: FieldProps) {
   const errorId = `${id}-error`;
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="font-medium text-neutral-900">
-        {label}
-      </label>
+      <Label htmlFor={id}>{label}</Label>
       <Input
         id={id}
         name={name}
@@ -25,7 +24,7 @@ export function Field({ name, label, error, ...inputProps }: FieldProps) {
         {...inputProps}
       />
       {error !== undefined && (
-        <p id={errorId} className="text-sm text-red-700">
+        <p id={errorId} className="text-sm text-destructive">
           {error}
         </p>
       )}

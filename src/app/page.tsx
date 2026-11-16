@@ -1,7 +1,7 @@
 export default function HomePage() {
   return (
     <main>
-      <h1>carnet</h1>
+      <h1>AuraCard</h1>
     </main>
   );
 }

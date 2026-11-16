@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { SignInForm } from "@/ui/features/auth/sign-in-form";
 
-export const metadata: Metadata = { title: "Connexion · carnet" };
+export const metadata: Metadata = { title: "Connexion" };
 
 export default function SignInPage() {
   return (

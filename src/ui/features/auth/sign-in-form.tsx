@@ -11,7 +11,7 @@ import { Field } from "@/ui/primitives/field";
 
 const INITIAL_STATE: ActionState = { status: "idle" };
 
-/** The display name is asked only when the account has to join carnet (`display_name_required`). */
+/** The display name is asked only when the account has to join AuraCard (`display_name_required`). */
 export function SignInForm() {
   const [state, formAction, pending] = useActionState(signInAction, INITIAL_STATE);
   const fieldErrors = fieldErrorsOf(state, SIGN_IN_FIELD_MESSAGES);
