@@ -26,14 +26,27 @@ function webServerEnv(): Record<string, string> {
   return values;
 }
 
-/** Set by the CI `e2e` job only: the application is reached through the TLS proxy (`.github/e2e.Caddyfile`). */
-const baseURL = process.env.E2E_BASE_URL;
+/**
+ * Set by the CI `e2e` job only: the application is reached through the TLS proxy (`.github/e2e.Caddyfile`),
+ * whose certificate comes from Caddy's local CA. Certificate errors are ignored for a loopback host only.
+ */
+function e2eBaseUrl(): string | undefined {
+  const value = process.env.E2E_BASE_URL;
+  if (!value) return undefined;
+  const { hostname } = new URL(value);
+  if (hostname !== "localhost" && hostname !== "127.0.0.1") {
+    throw new Error(`E2E_BASE_URL must target localhost or 127.0.0.1 (got host "${hostname}")`);
+  }
+  return value;
+}
+
+const baseURL = e2eBaseUrl();
 
 export default defineConfig({
   testDir: "tests/e2e",
   forbidOnly: !!process.env.CI,
   ...(baseURL ? { use: { baseURL, ignoreHTTPSErrors: true } } : {}),
-  // The teardown deletes the e2e-* accounts through the admin client: CI has no Supabase stack yet (CI task).
+  // The teardown deletes the e2e-* accounts through the admin client: useless in CI, the stack is discarded with the job.
   ...(process.env.CI ? {} : { globalTeardown: "tests/e2e/global-teardown.ts" }),
   projects: [
     { name: "ios-webkit", use: { ...devices["iPhone 15"] } },

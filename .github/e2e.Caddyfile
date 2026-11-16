@@ -9,6 +9,8 @@
 }
 
 https://localhost:3443 {
+	bind 127.0.0.1
+
 	# Certificate issued by Caddy's own local CA.
 	tls internal
 
@@ -18,6 +20,7 @@ https://localhost:3443 {
 		# By default Caddy replaces `X-Forwarded-For` with the peer address (127.0.0.1), which the
 		# application reads as the last element: every worker would share one rate-limit bucket.
 		# The header sent by the tests (one address per worker) is passed through as received.
+		# CI only: never copy this relay into a production proxy, any client could then choose its own address.
 		header_up X-Forwarded-For {header.X-Forwarded-For}
 	}
 }

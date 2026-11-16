@@ -2,6 +2,7 @@
 
 - Statut : in-progress (16/11/2026)
 - Validé par Hery (16/11/2026) : action `supabase/setup-cli` et épinglage de toutes les actions par SHA.
+- Validé par Hery (16/11/2026, après diagnostic de l'exécution 43878811015) : **décision 6 — HTTPS local par Caddy dans le job `e2e` uniquement**. Cause : WebKit Linux (Playwright) n'enregistre pas les cookies `Secure` reçus en HTTP, même sur `localhost` ; les cookies de production restent `Secure`. Caddy 2.11.9, binaire de la release GitHub officielle, SHA-512 du fichier `caddy_2.11.9_checksums.txt` épinglé et vérifié (`sha512sum --check --strict`) ; `E2E_BASE_URL` défini sur l'étape `test:e2e` seulement, comportement local inchangé. Périmètre étendu à `.github/e2e.Caddyfile`.
 - Agent : backend (`.github/workflows/ci.yml`, scripts `package.json`) ; test-engineer (adaptations éventuelles des `globalSetup` et `globalTeardown`)
 - Phase : 1 (socle : outillage et CI)
 - ADR liées : 0002, 0003
