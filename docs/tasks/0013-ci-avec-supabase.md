@@ -1,6 +1,7 @@
 # 0013 — CI avec la pile Supabase locale
 
-- Statut : todo (action GitHub tierce à valider par Hery)
+- Statut : in-progress (16/11/2026)
+- Validé par Hery (16/11/2026) : action `supabase/setup-cli` et épinglage de toutes les actions par SHA.
 - Agent : backend (`.github/workflows/ci.yml`, scripts `package.json`) ; test-engineer (adaptations éventuelles des `globalSetup` et `globalTeardown`)
 - Phase : 1 (socle : outillage et CI)
 - ADR liées : 0002, 0003
