@@ -4,17 +4,40 @@ import { ok, type Result } from "@/domain/shared/result";
 import { makeCallLog, scriptedResults, type CallLog } from "./call-log";
 import { PROFILE_ID } from "./fake-registrar";
 
-/** Shape fixed by the 0008 contract (`ProfileReader.getOwn`): a type mismatch here means the port drifted. */
-export type OwnProfile = { id: string; slug: string; displayName: string; isPublished: boolean };
+/**
+ * Shape fixed by the 0017 contract (decision 9, extends 0008): every editable field of `carnet.profiles` as stored,
+ * plus `id` and `slug`. A type mismatch here means the port drifted.
+ */
+export type OwnProfile = {
+  id: string;
+  slug: string;
+  displayName: string;
+  jobTitle: string | null;
+  company: string | null;
+  bio: string | null;
+  contactEmail: string | null;
+  phone: string | null;
+  websiteUrl: string | null;
+  isPublished: boolean;
+  isIndexable: boolean;
+};
 
 export type OwnProfileResult = Result<OwnProfile | null, "unexpected">;
 
+/** Defaults to the profile as `register_member` creates it: display name and slug only, unpublished. */
 export function anOwnProfile(overrides: Partial<OwnProfile> = {}): OwnProfile {
   return {
     id: PROFILE_ID,
     slug: "elodie-durand-merel",
     displayName: "Élodie Durand-Mérel",
+    jobTitle: null,
+    company: null,
+    bio: null,
+    contactEmail: null,
+    phone: null,
+    websiteUrl: null,
     isPublished: false,
+    isIndexable: false,
     ...overrides,
   };
 }

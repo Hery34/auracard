@@ -15,8 +15,12 @@ describe("RATE_LIMITS", () => {
     expect(RATE_LIMITS["login-account"]).toStrictEqual({ limit: 10, windowSeconds: 900 });
   });
 
-  it("defines exactly the three scopes signup, login and login-account", () => {
-    expect(Object.keys(RATE_LIMITS).sort()).toStrictEqual(["login", "login-account", "signup"]);
+  it("profile-write: 60 writes per account per hour (0017, decision 8)", () => {
+    expect(RATE_LIMITS["profile-write"]).toStrictEqual({ limit: 60, windowSeconds: 3600 });
+  });
+
+  it("defines exactly the four scopes signup, login, login-account and profile-write", () => {
+    expect(Object.keys(RATE_LIMITS).sort()).toStrictEqual(["login", "login-account", "profile-write", "signup"]);
   });
 });
 
