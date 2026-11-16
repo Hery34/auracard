@@ -25,6 +25,7 @@ const SCOPES = {
     "tsconfig.json",
     "eslint.config.mjs",
     ".github/",
+    "pnpm-workspace.yaml",
   ],
   scheduling: ["src/domain/booking/", "src/server/booking/"],
   frontend: ["src/app/", "src/ui/", "public/"],
