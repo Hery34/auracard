@@ -14,7 +14,7 @@ begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
 
-select plan(154);
+select plan(156);
 
 -- ---------------------------------------------------------------------------
 -- Critère 1 — table et colonnes (décision 1)
@@ -330,7 +330,25 @@ select ok(
 -- Critère 1 — privilèges sur la table
 -- ---------------------------------------------------------------------------
 select table_privs_are('carnet', 'links', 'anon', '{}'::name[], 'critère 1 : anon n''a aucun privilège sur la table links');
-select table_privs_are('carnet', 'links', 'authenticated', array['DELETE', 'INSERT', 'SELECT', 'UPDATE'], 'critère 1 : authenticated a select, insert, update, delete sur links (filtrés par RLS)');
+select table_privs_are('carnet', 'links', 'authenticated', array['DELETE', 'SELECT'], 'critère 1 (amendé 0022, décision 10) : authenticated a select et delete de table sur links (filtrés par RLS) ; ni insert ni update de table');
+select is(
+  (select array_agg(a.attname::text order by a.attname)
+     from pg_attribute a
+    where a.attrelid = 'carnet.links'::regclass
+      and a.attnum > 0 and not a.attisdropped
+      and has_column_privilege('authenticated', 'carnet.links', a.attname, 'INSERT')),
+  array['label', 'platform', 'position', 'profile_id', 'url'],
+  '0022 décision 10 : authenticated a insert sur exactement profile_id, platform, url, label, position'
+);
+select is(
+  (select array_agg(a.attname::text order by a.attname)
+     from pg_attribute a
+    where a.attrelid = 'carnet.links'::regclass
+      and a.attnum > 0 and not a.attisdropped
+      and has_column_privilege('authenticated', 'carnet.links', a.attname, 'UPDATE')),
+  array['label', 'platform', 'position', 'url'],
+  '0022 décision 10 : authenticated a update sur exactement platform, url, label, position'
+);
 select table_privs_are(
   'carnet', 'links', 'service_role',
   array['DELETE', 'INSERT', 'REFERENCES', 'SELECT', 'TRIGGER', 'TRUNCATE', 'UPDATE'],

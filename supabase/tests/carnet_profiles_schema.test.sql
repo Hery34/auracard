@@ -15,7 +15,7 @@ begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
 
-select plan(169);
+select plan(164);
 
 -- ---------------------------------------------------------------------------
 -- Critère 1 — table et colonnes (décision 1)
@@ -337,17 +337,13 @@ select function_privs_are('carnet', 'can_create_profile', array['uuid'], 'public
 -- ---------------------------------------------------------------------------
 select policies_are(
   'carnet', 'profiles',
-  array['profiles_select_own', 'profiles_insert_own', 'profiles_update_own', 'profiles_delete_own'],
-  'critère 3 : profiles a exactement les quatre politiques de la décision 6'
+  array['profiles_select_own', 'profiles_update_own'],
+  'critère 3 (amendé 0022, décisions 6 et 8) : profiles a exactement deux politiques, profiles_insert_own et profiles_delete_own supprimées'
 );
 select policy_roles_are('carnet', 'profiles', 'profiles_select_own', array['authenticated'], 'critère 3 : profiles_select_own s''applique au seul rôle authenticated');
-select policy_roles_are('carnet', 'profiles', 'profiles_insert_own', array['authenticated'], 'critère 3 : profiles_insert_own s''applique au seul rôle authenticated');
 select policy_roles_are('carnet', 'profiles', 'profiles_update_own', array['authenticated'], 'critère 3 : profiles_update_own s''applique au seul rôle authenticated');
-select policy_roles_are('carnet', 'profiles', 'profiles_delete_own', array['authenticated'], 'critère 3 : profiles_delete_own s''applique au seul rôle authenticated');
 select policy_cmd_is('carnet', 'profiles', 'profiles_select_own', 'SELECT', 'critère 3 : profiles_select_own est une politique select');
-select policy_cmd_is('carnet', 'profiles', 'profiles_insert_own', 'INSERT', 'critère 3 : profiles_insert_own est une politique insert');
 select policy_cmd_is('carnet', 'profiles', 'profiles_update_own', 'UPDATE', 'critère 3 : profiles_update_own est une politique update');
-select policy_cmd_is('carnet', 'profiles', 'profiles_delete_own', 'DELETE', 'critère 3 : profiles_delete_own est une politique delete');
 
 -- Chaque politique passe par une fonction d'autorisation enveloppée dans (select …) (ADR 0004, supabase.md).
 select ok(
@@ -362,15 +358,14 @@ select ok(
   'critère 3 : profiles_select_own utilise (select carnet.can_read_profile_private(…))'
 );
 select ok(
-  exists (
+  not exists (
     select 1
       from pg_policy p
       join pg_class c on c.oid = p.polrelid
       join pg_namespace n on n.oid = c.relnamespace
-     where n.nspname = 'carnet' and c.relname = 'profiles' and p.polname = 'profiles_insert_own'
-       and pg_get_expr(p.polwithcheck, p.polrelid) ~* '\(\s*select\s+carnet\.can_create_profile\('
+     where n.nspname = 'carnet' and c.relname = 'profiles' and p.polcmd in ('a', '*')
   ),
-  'critère 3 : profiles_insert_own vérifie (select carnet.can_create_profile(…)) en with check'
+  'critère 3 (amendé 0022, décision 6) : aucune politique insert (ni all) sur profiles : la création passe par register_member'
 );
 select ok(
   exists (
@@ -393,17 +388,6 @@ select ok(
        and pg_get_expr(p.polwithcheck, p.polrelid) ~* '\(\s*select\s+carnet\.can_create_profile\('
   ),
   'critère 3 : profiles_update_own vérifie (select carnet.can_create_profile(…)) en with check (empêche de céder un profil)'
-);
-select ok(
-  exists (
-    select 1
-      from pg_policy p
-      join pg_class c on c.oid = p.polrelid
-      join pg_namespace n on n.oid = c.relnamespace
-     where n.nspname = 'carnet' and c.relname = 'profiles' and p.polname = 'profiles_delete_own'
-       and pg_get_expr(p.polqual, p.polrelid) ~* '\(\s*select\s+carnet\.can_edit_profile\('
-  ),
-  'critère 3 : profiles_delete_own utilise (select carnet.can_edit_profile(…))'
 );
 
 -- Invariants sur tout le schéma carnet (vrais par vacuité aujourd'hui, ils protègent chaque table à venir).
@@ -617,7 +601,7 @@ select function_privs_are('carnet', 'get_public_profile', array['text'], 'servic
 select function_privs_are('carnet', 'get_public_profile', array['text'], 'public', '{}'::name[], 'critère 5 (amendement B) : execute révoqué pour public sur get_public_profile');
 
 select table_privs_are('carnet', 'profiles', 'anon', '{}'::name[], 'critère 5 (décision 8) : anon n''a aucun privilège sur la table profiles');
-select table_privs_are('carnet', 'profiles', 'authenticated', array['DELETE', 'INSERT', 'SELECT', 'UPDATE'], 'critère 5 (décision 8) : authenticated a select, insert, update, delete sur profiles (filtrés par RLS)');
+select table_privs_are('carnet', 'profiles', 'authenticated', array['SELECT'], 'critère 5 (décision 8, amendé 0022 décisions 6 et 8) : authenticated n''a que select au niveau table sur profiles (filtré par RLS) ; ni insert, ni delete, ni update de table (update par colonne, voir carnet_profiles_writes)');
 select table_privs_are(
   'carnet', 'profiles', 'service_role',
   array['DELETE', 'INSERT', 'REFERENCES', 'SELECT', 'TRIGGER', 'TRUNCATE', 'UPDATE'],
@@ -713,8 +697,9 @@ select throws_ok(
   '23514', null, 'critère 1 (décision 4) : phone de 33 caractères est refusé'
 );
 select throws_ok(
-  $$insert into carnet.profiles (owner_id, slug, display_name, website_url) values ('00000000-0000-4000-8000-000000000506', 'len-0005', 'X', repeat('a', 2049))$$,
-  '23514', null, 'critère 1 (décision 4) : website_url de 2049 caractères est refusée'
+  $$insert into carnet.profiles (owner_id, slug, display_name, website_url) values ('00000000-0000-4000-8000-000000000506', 'len-0005', 'X', 'https://a.test/' || repeat('a', 2034))$$,
+  '23514', 'new row for relation "profiles" violates check constraint "profiles_website_url_length_check"',
+  'critère 1 (décision 4) : website_url https de 2049 caractères est refusée par la seule contrainte de longueur'
 );
 select throws_ok(
   $$insert into carnet.profiles (owner_id, slug, display_name, avatar_url) values ('00000000-0000-4000-8000-000000000506', 'len-0005', 'X', repeat('a', 2049))$$,
@@ -728,7 +713,7 @@ select lives_ok(
   $$insert into carnet.profiles (owner_id, slug, display_name, job_title, company, bio, contact_email, phone, website_url, avatar_url, banner_url)
     values ('00000000-0000-4000-8000-000000000509', 'len-max-0005',
             repeat('a', 80), repeat('a', 80), repeat('a', 80), repeat('a', 500), repeat('a', 254), repeat('1', 32),
-            repeat('a', 2048), repeat('a', 2048), repeat('a', 2048))$$,
+            'https://a.test/' || repeat('a', 2033), repeat('a', 2048), repeat('a', 2048))$$,
   'critère 1 (décision 4) : toutes les colonnes exactement à leur longueur maximale sont acceptées (bornes incluses)'
 );
 
