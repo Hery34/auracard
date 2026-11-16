@@ -23,7 +23,9 @@
 - Données de test via `tests/builders/`.
 
 ## Commande unique
-`pnpm check` = lint + vérification des types + tests unitaires et d'intégration. Les E2E tournent avant chaque fusion sur `main`.
+`pnpm check` = lint + vérification des types + tests unitaires. L'intégration se lance par `pnpm test:integration` (la CI la lance dans le job `e2e`). Les E2E tournent avant chaque fusion sur `main`.
+`E2E_BASE_URL` est réservé à la CI (HTTPS local par Caddy, `localhost`/`127.0.0.1` seulement, refus explicite sinon) ; absent en local, où les E2E tournent en `http://localhost:3000`.
+
 
 ## Recette réelle (phase 5)
 Lecture NFC et QR sur appareils physiques : iPhone récent, iPhone ancien, Android avec NFC activé et désactivé, navigateurs intégrés (LinkedIn, Instagram, WhatsApp) pour le téléchargement vCard.
