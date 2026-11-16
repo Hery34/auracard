@@ -1,0 +1,46 @@
+name: CI
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm audit --prod
+      - run: pnpm audit
+        continue-on-error: true
+
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      # Placeholders satisfying src/server/infrastructure/env.ts at build time: no Supabase stack in CI yet (CI task).
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key-not-a-secret
+      SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key-not-a-secret
+      RATE_LIMIT_SECRET: "0000000000000000000000000000000000000000000000000000000000000000"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm build
+      # The authentication journeys (tests/e2e/auth.spec.ts) need the Supabase stack: CI task.
+      - run: pnpm test:e2e tests/e2e/home.spec.ts

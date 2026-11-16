@@ -1,0 +1,40 @@
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+
+import { createContainer } from "@/server/container";
+import { SignOutButton } from "@/ui/features/auth/sign-out-button";
+
+export const metadata: Metadata = { title: "Tableau de bord · carnet" };
+
+/** Authentication is checked here, independently of `src/proxy.ts`, which only redirects for comfort. */
+export default async function DashboardPage() {
+  const { getOwnProfile } = await createContainer();
+  const result = await getOwnProfile();
+  if (!result.ok) {
+    if (result.error === "unauthenticated") {
+      redirect("/connexion");
+    }
+    throw new Error("dashboard: profile unavailable");
+  }
+  const { profile } = result.value;
+  if (profile === null) {
+    redirect("/connexion");
+  }
+
+  return (
+    <main className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-8">
+      <h1 className="text-2xl font-semibold">Tableau de bord</h1>
+      <dl className="flex flex-col gap-2">
+        <div>
+          <dt className="text-sm text-neutral-700">Nom affiché</dt>
+          <dd className="text-lg">{profile.displayName}</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-neutral-700">Adresse du profil</dt>
+          <dd className="text-lg">{profile.slug}</dd>
+        </div>
+      </dl>
+      <SignOutButton />
+    </main>
+  );
+}
