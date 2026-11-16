@@ -47,6 +47,9 @@ jobs:
     timeout-minutes: 20
     env:
       RATE_LIMIT_SECRET: "0000000000000000000000000000000000000000000000000000000000000000"
+      # HTTPS in front of `pnpm start` (`.github/e2e.Caddyfile`): the `Secure` session cookies survive in WebKit.
+      CADDY_VERSION: "2.11.9"
+      CADDY_SHA256: "5b8cb7faf8726a2028ad96a66e54e6e81e8f361bc6175e5d22bbd997cc5177fb"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
@@ -80,4 +83,15 @@ jobs:
         run: pnpm exec playwright install-deps chromium webkit
       - run: pnpm test:integration
       - run: pnpm build
+      - name: Install Caddy from the official release (checksum verified)
+        run: |
+          archive="$RUNNER_TEMP/caddy.tar.gz"
+          curl -fsSLo "$archive" "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz"
+          echo "${CADDY_SHA256}  ${archive}" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/caddy"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/caddy" caddy
+          echo "$RUNNER_TEMP/caddy" >> "$GITHUB_PATH"
+      - run: caddy start --config .github/e2e.Caddyfile --adapter caddyfile
       - run: pnpm test:e2e
+        env:
+          E2E_BASE_URL: https://localhost:3443

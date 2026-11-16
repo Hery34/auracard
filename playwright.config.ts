@@ -26,9 +26,13 @@ function webServerEnv(): Record<string, string> {
   return values;
 }
 
+/** Set by the CI `e2e` job only: the application is reached through the TLS proxy (`.github/e2e.Caddyfile`). */
+const baseURL = process.env.E2E_BASE_URL;
+
 export default defineConfig({
   testDir: "tests/e2e",
   forbidOnly: !!process.env.CI,
+  ...(baseURL ? { use: { baseURL, ignoreHTTPSErrors: true } } : {}),
   // The teardown deletes the e2e-* accounts through the admin client: CI has no Supabase stack yet (CI task).
   ...(process.env.CI ? {} : { globalTeardown: "tests/e2e/global-teardown.ts" }),
   projects: [
@@ -37,7 +41,7 @@ export default defineConfig({
   ],
   webServer: {
     command: "pnpm start",
-    port: 3000,
+    ...(baseURL ? { url: baseURL, ignoreHTTPSErrors: true } : { port: 3000 }),
     reuseExistingServer: !process.env.CI,
     env: webServerEnv(),
   },
