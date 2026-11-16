@@ -1,4 +1,4 @@
-export type RateLimitScope = "signup" | "login" | "login-account";
+export type RateLimitScope = "signup" | "login" | "login-account" | "profile-write";
 
 export type RateLimit = { limit: number; windowSeconds: number };
 
@@ -6,6 +6,7 @@ export const RATE_LIMITS: Readonly<Record<RateLimitScope, RateLimit>> = {
   signup: { limit: 10, windowSeconds: 3600 },
   login: { limit: 10, windowSeconds: 900 },
   "login-account": { limit: 10, windowSeconds: 900 },
+  "profile-write": { limit: 60, windowSeconds: 3600 },
 };
 
 /** Minimal argument of the purge: no window older than this can still be active. */
