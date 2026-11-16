@@ -11,6 +11,7 @@ La convention Next.js de Hery prend Shadcn/ui comme base des composants. La fich
 4. **Thème** : sombre uniquement, variables CSS de la charte dans `:root` de `src/app/globals.css` (seule source de la palette), police Montserrat via `next/font/google` (auto-hébergée au build). Texte foncé sur émeraude (le blanc sur émeraude est à 2,1:1).
 5. **Nom affiché** : AuraCard ; `carnet` reste le nom technique (dépôt, schéma, identifiants).
 6. `docs/architecture.md` §3 est lu avec cet amendement ; le document reste figé.
+7. *Amendement du 16/11/2026 (Hery, phase 2)* : la **page profil publique** `/p/{slug}` suit `prefers-color-scheme` du visiteur (thème clair et thème sombre, accent émeraude AuraCard ; en clair, émeraude assombri pour le texte). L'application (authentification, tableau de bord) reste en sombre seul.
 
 ## Conséquences
 - Les fiches de phase 2 ajoutent les composants Shadcn dont elles ont besoin, dans `primitives/`, avec les mêmes adaptations.
