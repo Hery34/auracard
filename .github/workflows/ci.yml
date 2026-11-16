@@ -39,6 +39,8 @@ jobs:
       - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
         with:
           version: ${{ env.SUPABASE_CLI_VERSION }}
+      # The stack ports (supabase/config.toml, 54320-54329) sit in the Linux ephemeral range: reserve them before Docker binds them.
+      - run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
       - run: supabase start -x "$SUPABASE_EXCLUDED_SERVICES"
       - run: supabase db reset
       - run: supabase test db
@@ -65,6 +67,8 @@ jobs:
       - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
         with:
           version: ${{ env.SUPABASE_CLI_VERSION }}
+      # The stack ports (supabase/config.toml, 54320-54329) sit in the Linux ephemeral range: reserve them before Docker binds them.
+      - run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
       - run: supabase start -x "$SUPABASE_EXCLUDED_SERVICES"
       - name: Export the local stack variables
         shell: bash
