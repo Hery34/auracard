@@ -1,6 +1,8 @@
 # 0013 — CI avec la pile Supabase locale
 
-- Statut : todo (action GitHub tierce à valider par Hery)
+- Statut : done (16/11/2026)
+- Validé par Hery (16/11/2026) : action `supabase/setup-cli` et épinglage de toutes les actions par SHA.
+- Validé par Hery (16/11/2026, après diagnostic de l'exécution 43878811015) : **décision 6 — HTTPS local par Caddy dans le job `e2e` uniquement**. Cause : WebKit Linux (Playwright) n'enregistre pas les cookies `Secure` reçus en HTTP, même sur `localhost` ; les cookies de production restent `Secure`. Caddy 2.11.9, binaire de la release GitHub officielle, SHA-512 du fichier `caddy_2.11.9_checksums.txt` épinglé et vérifié (`sha512sum --check --strict`) ; `E2E_BASE_URL` défini sur l'étape `test:e2e` seulement, comportement local inchangé. Périmètre étendu à `.github/e2e.Caddyfile`.
 - Agent : backend (`.github/workflows/ci.yml`, scripts `package.json`) ; test-engineer (adaptations éventuelles des `globalSetup` et `globalTeardown`)
 - Phase : 1 (socle : outillage et CI)
 - ADR liées : 0002, 0003
@@ -37,16 +39,17 @@ Chaque push et chaque pull request exécutent toute la suite : pgTAP, tests d'in
 - Déploiement continu vers le VPS (fiche déploiement, ADR 0007). Veille mensuelle des avis de sécurité automatisée. Protection de branche sur GitHub (réglage de Hery).
 
 ## Définition de terminé
-- [ ] Action `supabase/setup-cli` et épinglage par SHA validés par Hery
-- [ ] Preuves d'échec (migration cassée, E2E cassé) consignées
-- [ ] `pnpm check` vert en local ; les trois jobs verts sur GitHub
-- [ ] reviewer : OK ou remarques non bloquantes traitées
-- [ ] security-auditor : OK
-- [ ] Aucune déviation d'architecture (sinon ADR validée par Hery)
-- [ ] Ligne ajoutée dans `docs/journal.md`
+- [x] Action `supabase/setup-cli` et épinglage par SHA validés par Hery
+- [x] Preuves d'échec (migration cassée, E2E cassé) consignées
+- [x] `pnpm check` vert en local ; les trois jobs verts sur GitHub
+- [x] reviewer : OK ou remarques non bloquantes traitées
+- [x] security-auditor : OK
+- [x] Aucune déviation d'architecture (sinon ADR validée par Hery)
+- [x] Ligne ajoutée dans `docs/journal.md`
 
 ## Rapports
-- test-engineer : …
-- implémentation : …
-- reviewer : …
-- security-auditor : …
+- test-engineer : sans objet (aucun test nouveau ; filet = suites existantes).
+- implémentation (backend, 16/11/2026) : jobs `check`, `db` (`supabase start` allégé, `db reset`, `test db`), `e2e` (intégration, build, E2E complets) ; actions épinglées par SHA (checkout v7.0.1, pnpm/action-setup v6.1.1, setup-node v7.1.0, supabase/setup-cli v3.2.0, cache v6.1.0), CLI 2.120.0, services exclus `realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor`. Exécution 43878811015 : `e2e` 29/30, `[ios-webkit] auth.spec.ts:253` (cookies `Secure` non stockés par WebKit Linux en HTTP) → décision 6, Caddy 2.11.9 en HTTPS local (`E2E_BASE_URL`, CI seulement). Durcissements post-revue/audit : `pipefail` et contrôle des 3 variables exportées, SHA-512 officiel de Caddy, `persist-credentials: false`, `bind 127.0.0.1`, `E2E_BASE_URL` limité à localhost, clé de cache Playwright avec navigateurs, `setup-node` retiré de `db`. `RATE_LIMIT_SECRET` reste au niveau du job (validé au build par `env.ts`).
+- vérification orchestrateur (16/11/2026) : exécution 43882756599 verte — `check` 24 s (289 unitaires), `db` 2 min 00 (532 pgTAP), `e2e` 3 min 59 (26 intégration, 30 E2E iOS et Android) ; ≈ 4 min en parallèle ; caches pnpm restaurés. Preuves d'échec : E2E → exécution 43878811015 (`e2e` rouge, code 1) ; migration cassée → branche jetable `proof/0013-broken-migration` (`select 1/0;`), exécution 43883715535 : `db` et `e2e` rouges (`division by zero`, SQLSTATE 22012, dès `supabase start`), `check` vert ; branche supprimée. `pnpm audit` complet : 1 avis moyen `minimatch` (dépendance de développement via `eslint-config-next`), non bloquant ; `--prod` : aucun.
+- reviewer (16/11/2026) : bloquant (procédure : Caddy non consigné ; preuve migration manquante) → levé (décision 6 consignée, preuve faite). À corriger traités (commentaire teardown, `pipefail`, `setup-node`, chiffres et caches). Suggestions : clé de cache (fait) ; ligne `E2E_BASE_URL` dans `docs/rules/testing.md` et écart antérieur « `pnpm check` lance l'intégration » dans ce même fichier → à reprendre (règles hors périmètre orchestrateur, à soumettre à Hery).
+- security-auditor (16/11/2026) : **OK**. SHA des actions et actions internes de `setup-cli` vérifiés, Caddy à jour (2.11.9, avis 2.11.8 corrigés), clés de démonstration locales acceptables, `pull_request` sans `pull_request_target`. Faibles traités : SHA-512 officiel, `persist-credentials: false`, `ignoreHTTPSErrors` limité à localhost, `bind 127.0.0.1`. Hors périmètre : réglage « approbation des workflows de forks » (Hery).

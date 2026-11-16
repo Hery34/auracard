@@ -7,14 +7,19 @@ permissions:
 
 env:
   NEXT_TELEMETRY_DISABLED: "1"
+  SUPABASE_CLI_VERSION: "2.120.0"
+  # Tests only need Postgres, GoTrue, PostgREST and Kong (enable_confirmations = false: no e-mail sent).
+  SUPABASE_EXCLUDED_SERVICES: realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -24,23 +29,81 @@ jobs:
       - run: pnpm audit
         continue-on-error: true
 
+  db:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+      - run: supabase start -x "$SUPABASE_EXCLUDED_SERVICES"
+      - run: supabase db reset
+      - run: supabase test db
+
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
-      # Placeholders satisfying src/server/infrastructure/env.ts at build time: no Supabase stack in CI yet (CI task).
-      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key-not-a-secret
-      SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key-not-a-secret
+      # Job level: `src/server/infrastructure/env.ts` is validated when its modules load, `pnpm build` included.
       RATE_LIMIT_SECRET: "0000000000000000000000000000000000000000000000000000000000000000"
+      # HTTPS in front of `pnpm start` (`.github/e2e.Caddyfile`): the `Secure` session cookies survive in WebKit.
+      CADDY_VERSION: "2.11.9"
+      # SHA-512 of caddy_2.11.9_linux_amd64.tar.gz, from the official caddy_2.11.9_checksums.txt of the GitHub release.
+      CADDY_SHA512: "0e85544340290a16ce4bfb76fe7d65e9de1bf3a6e67f5ccfff30b30d27ea4c73e078077b7bf3e58ae60b6b12e44327705287059c775bca5782e8ee85ea7edd75"
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           cache: pnpm
+      - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+      - run: supabase start -x "$SUPABASE_EXCLUDED_SERVICES"
+      - name: Export the local stack variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase status -o env \
+            --override-name api.url=NEXT_PUBLIC_SUPABASE_URL \
+            --override-name auth.anon_key=NEXT_PUBLIC_SUPABASE_ANON_KEY \
+            --override-name auth.service_role_key=SUPABASE_SERVICE_ROLE_KEY \
+            | grep -E '^(NEXT_PUBLIC_SUPABASE_URL|NEXT_PUBLIC_SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY)=' \
+            | sed -E 's/^([A-Z_]+)="(.*)"$/\1=\2/' > "$RUNNER_TEMP/supabase.env"
+          if [ "$(grep -cE '^(NEXT_PUBLIC_SUPABASE_URL|NEXT_PUBLIC_SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY)=.+' "$RUNNER_TEMP/supabase.env")" -ne 3 ]; then
+            echo "::error::supabase status did not provide the three stack variables"
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/supabase.env" >> "$GITHUB_ENV"
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium webkit
+      - id: playwright
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - id: playwright-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium-webkit
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium webkit
+      - if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium webkit
+      - run: pnpm test:integration
       - run: pnpm build
-      # The authentication journeys (tests/e2e/auth.spec.ts) need the Supabase stack: CI task.
-      - run: pnpm test:e2e tests/e2e/home.spec.ts
+      - name: Install Caddy from the official release (checksum verified)
+        run: |
+          archive="$RUNNER_TEMP/caddy.tar.gz"
+          curl -fsSLo "$archive" "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz"
+          echo "${CADDY_SHA512}  ${archive}" | sha512sum --check --strict
+          mkdir -p "$RUNNER_TEMP/caddy"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/caddy" caddy
+          echo "$RUNNER_TEMP/caddy" >> "$GITHUB_PATH"
+      - run: caddy start --config .github/e2e.Caddyfile --adapter caddyfile
+      - run: pnpm test:e2e
+        env:
+          E2E_BASE_URL: https://localhost:3443

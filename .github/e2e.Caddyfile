@@ -1,0 +1,26 @@
+# CI `e2e` job only: TLS proxy in front of `pnpm start`, so the browsers keep the `Secure` session cookies
+# (the WebKit of Playwright on Linux drops them over plain HTTP, even on localhost).
+{
+	# No admin endpoint, no HTTP listener, no attempt to install the local CA in the system trust store
+	# (Playwright runs with `ignoreHTTPSErrors`).
+	admin off
+	auto_https disable_redirects
+	skip_install_trust
+}
+
+https://localhost:3443 {
+	bind 127.0.0.1
+
+	# Certificate issued by Caddy's own local CA.
+	tls internal
+
+	# Caddy forwards `Host` unchanged and sets `X-Forwarded-Host` and `X-Forwarded-Proto: https`: the
+	# `Origin` of the Server Actions (https://localhost:3443) matches the host Next.js compares it with.
+	reverse_proxy 127.0.0.1:3000 {
+		# By default Caddy replaces `X-Forwarded-For` with the peer address (127.0.0.1), which the
+		# application reads as the last element: every worker would share one rate-limit bucket.
+		# The header sent by the tests (one address per worker) is passed through as received.
+		# CI only: never copy this relay into a production proxy, any client could then choose its own address.
+		header_up X-Forwarded-For {header.X-Forwarded-For}
+	}
+}
