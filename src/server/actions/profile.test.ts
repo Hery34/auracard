@@ -305,7 +305,7 @@ describe("replaceLinksAction", () => {
       linksForm([
         { platform: "SENTINEL-PLATFORM", url: "https://a.example/" },
         { platform: "website", url: "javascript:alert('SENTINEL-URL')" },
-        { platform: "website", url: "https://a.example/", label: `SENTINEL-LABEL‮${"l".repeat(40)}` },
+        { platform: "website", url: "https://a.example/", label: `SENTINEL-LABEL\u202E${"l".repeat(40)}` },
         { id: "SENTINEL-ID", platform: "website", url: "https://a.example/" },
       ]),
     );

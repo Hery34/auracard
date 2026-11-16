@@ -25,7 +25,7 @@ begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
 
-select plan(130);
+select plan(140);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (postgres)
@@ -64,9 +64,9 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-00000000160a","role":"authenticated"}';
 
 select lives_ok(
-  $$insert into carnet.links (id, profile_id, platform, url, label, position)
-    values ('00000000-0000-4000-8000-000000001640', '00000000-0000-4000-8000-000000001620', 'website', 'https://alice.example.test', 'Site', 0)$$,
-  'critère 1 : le propriétaire crée un lien sur son profil'
+  $$insert into carnet.links (profile_id, platform, url, label, position)
+    values ('00000000-0000-4000-8000-000000001620', 'website', 'https://alice.example.test', 'Site', 0)$$,
+  'critère 1 (amendé 0022, décision 10) : le propriétaire crée un lien sur son profil avec les seules colonnes accordées'
 );
 select results_eq(
   $$select platform, url, label, position from carnet.links$$,
@@ -74,21 +74,66 @@ select results_eq(
   'critère 1 : le propriétaire relit son lien, et seulement le sien'
 );
 with updated as (
-  update carnet.links set label = 'Mon site' where id = '00000000-0000-4000-8000-000000001640' returning 1
+  update carnet.links set label = 'Mon site' where profile_id = '00000000-0000-4000-8000-000000001620' returning 1
 )
 select is(count(*), 1::bigint, 'critère 1 : le propriétaire modifie son lien (1 ligne affectée)') from updated;
+with updated as (
+  update carnet.links set platform = 'document', url = 'https://alice.example.test/brochure.pdf', label = 'Brochure', position = 1
+   where profile_id = '00000000-0000-4000-8000-000000001620' returning 1
+)
+select is(count(*), 1::bigint, '0022 décision 10 : update de platform, url, label, position accepté sur son lien') from updated;
 select throws_ok(
   $$update carnet.links set profile_id = '00000000-0000-4000-8000-000000001621'
-     where id = '00000000-0000-4000-8000-000000001640'$$,
-  '42501', null, 'critère 1 : le propriétaire ne peut pas déplacer son lien vers le profil d''un autre (with check → 42501)'
+     where profile_id = '00000000-0000-4000-8000-000000001620'$$,
+  '42501', null, 'critère 1 : le propriétaire ne peut pas déplacer son lien vers le profil d''un autre (42501)'
 );
 select throws_ok(
   $$insert into carnet.links (profile_id, platform, url, position)
     values ('00000000-0000-4000-8000-000000001621', 'x', 'https://x.com/intruder', 5)$$,
   '42501', null, 'critère 1 : le propriétaire ne peut pas créer de lien sur le profil d''un autre membre'
 );
+
+-- 0022 décision 10 : droits par colonne (insert : profile_id, platform, url, label, position ;
+-- update : platform, url, label, position) ; id, created_at, updated_at et le rattachement hors de portée.
+select throws_ok(
+  $$insert into carnet.links (id, profile_id, platform, url, label, position)
+    values ('00000000-0000-4000-8000-000000001641', '00000000-0000-4000-8000-000000001620', 'github', 'https://github.com/alice-0016', null, 2)$$,
+  '42501', null, '0022 décision 10 : insert direct avec id choisi refusé sur son profil (42501)'
+);
+select throws_ok(
+  $$insert into carnet.links (profile_id, platform, url, position, created_at)
+    values ('00000000-0000-4000-8000-000000001620', 'github', 'https://github.com/alice-0016', 2, '2000-01-01')$$,
+  '42501', null, '0022 décision 10 : insert direct avec created_at refusé sur son profil (42501)'
+);
+select throws_ok(
+  $$insert into carnet.links (profile_id, platform, url, position, updated_at)
+    values ('00000000-0000-4000-8000-000000001620', 'github', 'https://github.com/alice-0016', 2, '2000-01-01')$$,
+  '42501', null, '0022 décision 10 : insert direct avec updated_at refusé sur son profil (42501)'
+);
+select throws_ok(
+  $$update carnet.links set id = '00000000-0000-4000-8000-000000001642' where profile_id = '00000000-0000-4000-8000-000000001620'$$,
+  '42501', null, '0022 décision 10 : update de id refusé sur son lien (42501)'
+);
+select throws_ok(
+  $$update carnet.links set profile_id = '00000000-0000-4000-8000-000000001620' where profile_id = '00000000-0000-4000-8000-000000001620'$$,
+  '42501', null, '0022 décision 10 : update de profile_id refusé même vers son propre profil (with check satisfait) (42501)'
+);
+select throws_ok(
+  $$update carnet.links set created_at = '2000-01-01' where profile_id = '00000000-0000-4000-8000-000000001620'$$,
+  '42501', null, '0022 décision 10 : update de created_at refusé sur son lien (42501)'
+);
+select throws_ok(
+  $$update carnet.links set updated_at = '2000-01-01' where profile_id = '00000000-0000-4000-8000-000000001620'$$,
+  '42501', null, '0022 décision 10 : update de updated_at refusé sur son lien (42501)'
+);
+select is(
+  (select count(*) from carnet.links where profile_id = '00000000-0000-4000-8000-000000001620'),
+  1::bigint,
+  '0022 décision 10 : les écritures refusées n''ont créé aucun lien'
+);
+
 with deleted as (
-  delete from carnet.links where id = '00000000-0000-4000-8000-000000001640' returning 1
+  delete from carnet.links where profile_id = '00000000-0000-4000-8000-000000001620' returning 1
 )
 select is(count(*), 1::bigint, 'critère 1 : le propriétaire supprime son lien (1 ligne affectée)') from deleted;
 select is_empty($$select * from carnet.links$$, 'critère 1 : après suppression, le propriétaire ne voit plus aucun lien');
@@ -920,16 +965,23 @@ select results_eq(
 reset role;
 
 -- ---------------------------------------------------------------------------
--- Critère 4 — A supprime son profil : ses liens disparaissent (cascade)
+-- Critère 4 — suppression du profil publié de A : ses liens disparaissent (cascade)
+-- Amendé par 0022 (décision 8) : le delete direct sous authenticated est retiré ; le profil est supprimé par
+-- la suppression du compte de A (postgres, cascade auth.users → profiles → links).
 -- ---------------------------------------------------------------------------
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-00000000160a","role":"authenticated"}';
 update carnet.profiles set is_published = true where id = '00000000-0000-4000-8000-000000001620';
-with deleted as (
-  delete from carnet.profiles where id = '00000000-0000-4000-8000-000000001620' returning 1
-)
-select is(count(*), 1::bigint, 'critère 4 (précondition) : le propriétaire supprime son profil publié') from deleted;
+select throws_ok(
+  $$delete from carnet.profiles where id = '00000000-0000-4000-8000-000000001620'$$,
+  '42501', null, 'critère 4 (amendé 0022, décision 8) : le propriétaire ne supprime pas directement son profil (42501)'
+);
 reset role;
+
+select lives_ok(
+  $$delete from auth.users where id = '00000000-0000-4000-8000-00000000160a'$$,
+  'critère 4 (précondition, amendé 0022) : le compte de A est supprimé (postgres), son profil publié avec lui'
+);
 
 select is(
   (select count(*) from carnet.links where profile_id = '00000000-0000-4000-8000-000000001620'),

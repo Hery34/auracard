@@ -12,11 +12,17 @@
 -- Les profils orphelins (propriétaire sans appartenance à carnet) prouvent que les fonctions exigent
 -- is_member() et ne se contentent pas de owner_id = auth.uid() (décision 5).
 -- Les fixtures sont créées par postgres (bypassrls) dans la transaction et annulées par le rollback final (critère 6).
+-- Amendé par 0022 (décision 6) : l'insert direct sous authenticated est retiré (privilège et politique profiles_insert_own) ;
+-- les profils de A et A2 sont créés par postgres (la création applicative passe par carnet.register_member) et tout
+-- insert sous authenticated est refusé (42501).
+-- Amendé par 0022 (décision 8) : le delete direct sous authenticated est retiré (privilège et politique
+-- profiles_delete_own) : tout delete sous authenticated est refusé (42501) ; la suppression d'un profil passe par la
+-- suppression du compte (cascade auth.users → profiles), testée sous postgres.
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
 
-select plan(50);
+select plan(54);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (postgres) — la ligne carnet du registre vient de la migration 0004 : on lit son id.
@@ -40,38 +46,45 @@ insert into platform.project_members (project_id, user_id, role)
 -- ---------------------------------------------------------------------------
 -- Critère 4 — A : membre de carnet, propriétaire
 -- ---------------------------------------------------------------------------
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-00000000050a","role":"authenticated"}';
-
 select lives_ok(
   $$insert into carnet.profiles (id, owner_id, slug, display_name, contact_email)
     values ('00000000-0000-4000-8000-000000000510', '00000000-0000-4000-8000-00000000050a', 'alice-0005', 'Alice', 'alice-0005@example.test')$$,
-  'critère 4 : un membre crée son profil'
-);
-select results_eq(
-  $$select slug from carnet.profiles$$,
-  $$values ('alice-0005'::text)$$,
-  'critère 4 : un membre relit son profil'
+  'critère 4 (précondition, amendé 0022) : postgres crée le profil de A (la création applicative passe par register_member)'
 );
 -- Décision 2 : un seul profil par utilisateur ; le slug diffère pour que seule profiles_owner_id_key puisse jouer.
+-- Amendé 0022 : prouvé sous postgres, l'insert sous authenticated étant refusé avant la contrainte (42501).
 select throws_ok(
   $$insert into carnet.profiles (owner_id, slug, display_name)
     values ('00000000-0000-4000-8000-00000000050a', 'alice-bis-0005', 'Alice bis')$$,
   '23505', null,
   'critère 4 (décision 2) : un second profil pour le même propriétaire est refusé par profiles_owner_id_key'
 );
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-00000000050a","role":"authenticated"}';
+
+select throws_ok(
+  $$insert into carnet.profiles (owner_id, slug, display_name)
+    values ('00000000-0000-4000-8000-00000000050a', 'alice-ter-0005', 'Alice ter')$$,
+  '42501', null,
+  'critère 4 (amendé 0022, décision 6) : un membre ne peut pas créer directement de profil, même à son nom (42501)'
+);
+select results_eq(
+  $$select slug from carnet.profiles$$,
+  $$values ('alice-0005'::text)$$,
+  'critère 4 : un membre relit son profil'
+);
 with updated as (
   update carnet.profiles set display_name = 'Alice B.' where id = '00000000-0000-4000-8000-000000000510' returning 1
 )
 select is(count(*), 1::bigint, 'critère 4 : un membre modifie son profil (1 ligne affectée)') from updated;
 
--- Céder le profil : la ligne est visible par A (using can_edit_profile vrai), donc c'est le with check
--- can_create_profile(owner_id = A2) qui échoue et lève 42501. « 0 ligne » signifierait que le using a filtré
--- la ligne, ce qui n'est pas le cas pour le propriétaire : on attend donc l'erreur, pas un update silencieux.
+-- Céder le profil : depuis 0022 (décision 1), owner_id n'est plus dans les colonnes accordées en update à
+-- authenticated ; le refus 42501 vient du privilège de colonne, avant toute évaluation de la politique.
 select throws_ok(
   $$update carnet.profiles set owner_id = '00000000-0000-4000-8000-00000000050b'
      where id = '00000000-0000-4000-8000-000000000510'$$,
-  '42501', null, 'critère 4 (décision 6) : un membre ne peut pas céder son profil (update owner_id → 42501 par le with check)'
+  '42501', null, 'critère 4 (décision 6) : un membre ne peut pas céder son profil (update owner_id → 42501, refusé par le privilège de colonne (amendé 0022, décision 1))'
 );
 
 -- Fonctions d'autorisation appelées directement (décision 5)
@@ -96,20 +109,30 @@ with updated as (
   update carnet.profiles set display_name = 'Hacked' where id = '00000000-0000-4000-8000-000000000510' returning 1
 )
 select is(count(*), 0::bigint, 'critère 4 : un autre membre ne modifie pas le profil de A (0 ligne affectée)') from updated;
-with deleted as (
-  delete from carnet.profiles where id = '00000000-0000-4000-8000-000000000510' returning 1
-)
-select is(count(*), 0::bigint, 'critère 4 : un autre membre ne supprime pas le profil de A (0 ligne affectée)') from deleted;
+select throws_ok(
+  $$delete from carnet.profiles where id = '00000000-0000-4000-8000-000000000510'$$,
+  '42501', null, 'critère 4 (amendé 0022, décision 8) : un autre membre ne supprime pas le profil de A (42501 : delete retiré)'
+);
 select throws_ok(
   $$insert into carnet.profiles (owner_id, slug, display_name)
     values ('00000000-0000-4000-8000-00000000050a', 'intruder-0005', 'Intruder')$$,
   '42501', null, 'critère 4 : un autre membre ne peut pas insérer un profil au nom de A'
 );
+select throws_ok(
+  $$insert into carnet.profiles (id, owner_id, slug, display_name)
+    values ('00000000-0000-4000-8000-000000000511', '00000000-0000-4000-8000-00000000050b', 'bob-0005', 'Bob')$$,
+  '42501', null, 'critère 4 (amendé 0022, décision 6) : un autre membre ne peut pas créer directement son propre profil (42501)'
+);
+reset role;
+
 select lives_ok(
   $$insert into carnet.profiles (id, owner_id, slug, display_name)
     values ('00000000-0000-4000-8000-000000000511', '00000000-0000-4000-8000-00000000050b', 'bob-0005', 'Bob')$$,
-  'critère 4 : un autre membre crée son propre profil'
+  'critère 4 (précondition, amendé 0022) : postgres crée le profil de A2'
 );
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-00000000050b","role":"authenticated"}';
 select results_eq(
   $$select slug from carnet.profiles$$,
   $$values ('bob-0005'::text)$$,
@@ -152,16 +175,16 @@ select is_empty(
 select throws_ok(
   $$insert into carnet.profiles (owner_id, slug, display_name)
     values ('00000000-0000-4000-8000-00000000050c', 'bea-bis-0005', 'Bea bis')$$,
-  '42501', null, 'critère 4 : un compte sans appartenance ne peut pas insérer de profil (RLS avant la contrainte d''unicité)'
+  '42501', null, 'critère 4 : un compte sans appartenance ne peut pas insérer de profil (42501 : privilège retiré par 0022, avant la contrainte d''unicité)'
 );
 with updated as (
   update carnet.profiles set display_name = 'Hacked' where id = '00000000-0000-4000-8000-000000000512' returning 1
 )
 select is(count(*), 0::bigint, 'critère 4 : un compte sans appartenance ne modifie pas un profil à son nom (0 ligne)') from updated;
-with deleted as (
-  delete from carnet.profiles where id = '00000000-0000-4000-8000-000000000512' returning 1
-)
-select is(count(*), 0::bigint, 'critère 4 : un compte sans appartenance ne supprime pas un profil à son nom (0 ligne)') from deleted;
+select throws_ok(
+  $$delete from carnet.profiles where id = '00000000-0000-4000-8000-000000000512'$$,
+  '42501', null, 'critère 4 (amendé 0022, décision 8) : un compte sans appartenance ne supprime pas un profil à son nom (42501)'
+);
 select is(carnet.can_edit_profile('00000000-0000-4000-8000-000000000512'), false, 'critère 4 (décision 5) : can_edit_profile est faux pour un propriétaire sans appartenance à carnet');
 reset role;
 
@@ -184,10 +207,10 @@ with updated as (
   update carnet.profiles set display_name = 'Hacked' where id = '00000000-0000-4000-8000-000000000513' returning 1
 )
 select is(count(*), 0::bigint, 'critère 4 : un membre d''un autre projet ne modifie pas un profil à son nom (0 ligne)') from updated;
-with deleted as (
-  delete from carnet.profiles where id = '00000000-0000-4000-8000-000000000513' returning 1
-)
-select is(count(*), 0::bigint, 'critère 4 : un membre d''un autre projet ne supprime pas un profil à son nom (0 ligne)') from deleted;
+select throws_ok(
+  $$delete from carnet.profiles where id = '00000000-0000-4000-8000-000000000513'$$,
+  '42501', null, 'critère 4 (amendé 0022, décision 8) : un membre d''un autre projet ne supprime pas un profil à son nom (42501)'
+);
 select is(carnet.can_edit_profile('00000000-0000-4000-8000-000000000513'), false, 'critère 4 (décision 5) : can_edit_profile est faux pour un propriétaire membre d''un autre projet');
 reset role;
 
@@ -289,20 +312,30 @@ select results_eq(
 reset role;
 
 -- ---------------------------------------------------------------------------
--- Critère 4 — A supprime son profil ; il n'est plus renvoyé par get_public_profile
+-- Critère 4 (amendé 0022, décision 8) — A ne supprime pas directement son profil ; la suppression de son compte
+-- (postgres) le supprime par cascade et il n'est plus renvoyé par get_public_profile
 -- ---------------------------------------------------------------------------
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-00000000050a","role":"authenticated"}';
-with deleted as (
-  delete from carnet.profiles where id = '00000000-0000-4000-8000-000000000510' returning 1
-)
-select is(count(*), 1::bigint, 'critère 4 : un membre supprime son profil (1 ligne affectée)') from deleted;
+select throws_ok(
+  $$delete from carnet.profiles where id = '00000000-0000-4000-8000-000000000510'$$,
+  '42501', null, 'critère 4 (amendé 0022, décision 8) : un membre ne supprime pas directement son propre profil (42501)'
+);
 reset role;
 
 select is(
   (select count(*) from carnet.profiles where id = '00000000-0000-4000-8000-000000000510'),
+  1::bigint,
+  'critère 4 (amendé 0022, décision 8) : le profil de A existe toujours après la tentative directe (contrôle postgres)'
+);
+select lives_ok(
+  $$delete from auth.users where id = '00000000-0000-4000-8000-00000000050a'$$,
+  'critère 4 (amendé 0022, décision 8) : le compte de A est supprimé (postgres)'
+);
+select is(
+  (select count(*) from carnet.profiles where id = '00000000-0000-4000-8000-000000000510'),
   0::bigint,
-  'critère 4 : le profil supprimé par A n''existe plus (contrôle postgres)'
+  'critère 4 : la suppression du compte de A supprime son profil (cascade, contrôle postgres)'
 );
 
 set local role anon;

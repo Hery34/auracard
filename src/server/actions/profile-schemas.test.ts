@@ -200,15 +200,15 @@ describe("updateProfileSchema", () => {
     ["an empty display name", { ...validProfileForm, displayName: "" }],
     ["a blank display name", { ...validProfileForm, displayName: "   " }],
     ["a display name with a control character", { ...validProfileForm, displayName: "Élodie\u0007" }],
-    ["a display name with a right-to-left override", { ...validProfileForm, displayName: "Élodie‮" }],
-    ["a display name with a zero-width space", { ...validProfileForm, displayName: "Élo​die" }],
+    ["a display name with a right-to-left override", { ...validProfileForm, displayName: "Élodie\u202E" }],
+    ["a display name with a zero-width space", { ...validProfileForm, displayName: "Élo\u200Bdie" }],
     ["a job title with a line feed", { ...validProfileForm, jobTitle: "Archi\ntecte" }],
-    ["a job title with a right-to-left override", { ...validProfileForm, jobTitle: "Archi‮tecte" }],
+    ["a job title with a right-to-left override", { ...validProfileForm, jobTitle: "Archi\u202Etecte" }],
     ["a company with a control character", { ...validProfileForm, company: "Atelier\u0000" }],
-    ["a company with a first-strong isolate (U+2068)", { ...validProfileForm, company: "Atelier⁨" }],
+    ["a company with a first-strong isolate (U+2068)", { ...validProfileForm, company: "Atelier\u2068" }],
     ["a bio with a bell character", { ...validProfileForm, bio: "Bonjour\u0007" }],
-    ["a bio with a right-to-left override", { ...validProfileForm, bio: "Bonjour‮" }],
-    ["a bio with a left-to-right isolate (U+2066)", { ...validProfileForm, bio: "Bonjour⁦" }],
+    ["a bio with a right-to-left override", { ...validProfileForm, bio: "Bonjour\u202E" }],
+    ["a bio with a left-to-right isolate (U+2066)", { ...validProfileForm, bio: "Bonjour\u2066" }],
     ["a malformed public e-mail", { ...validProfileForm, contactEmail: "not-an-email" }],
     ["a phone number with letters", { ...validProfileForm, phone: "06 12 ab" }],
     ["an http website", { ...validProfileForm, websiteUrl: "http://atelier-merel.example/" }],
@@ -220,6 +220,20 @@ describe("updateProfileSchema", () => {
     ["isIndexable with a value other than 'on'", { ...validProfileForm, isIndexable: "false" }],
   ])("criterion 1 (invalid input): refuses %s", (_label, form) => {
     expect(refusesProfile(form)).toBe(true);
+  });
+
+  it.each([
+    ["displayName", "U+2028", "\u2028"],
+    ["displayName", "U+2029", "\u2029"],
+    ["jobTitle", "U+2028", "\u2028"],
+    ["jobTitle", "U+2029", "\u2029"],
+    ["company", "U+2028", "\u2028"],
+    ["company", "U+2029", "\u2029"],
+  ])("0022 decision 9: refuses %s with the separator %s (profiles_text_charset_check)", (field, _codePoint, character) => {
+    const parsed = updateProfileSchema.safeParse({ ...validProfileForm, [field]: `Atelier${character}Lyon` });
+
+    expect(parsed.success).toBe(false);
+    expect(parsed.error?.issues.map((issue) => issue.path[0])).toContain(field);
   });
 
   it("accepts line breaks in the bio (\\n and \\r\\n)", () => {
@@ -342,8 +356,8 @@ describe("replaceLinksSchema", () => {
     ["a URL with credentials", [{ platform: "website", url: "https://user@atelier-merel.example/" }]],
     ["a URL of 2049 characters", [{ platform: "website", url: `https://example.com/${"a".repeat(2029)}` }]],
     ["a label of 41 characters", [{ platform: "website", url: "https://a.example/", label: "l".repeat(41) }]],
-    ["a label with a right-to-left override", [{ platform: "website", url: "https://a.example/", label: "a‮b" }]],
-    ["a label with a zero-width space", [{ platform: "website", url: "https://a.example/", label: "a​b" }]],
+    ["a label with a right-to-left override", [{ platform: "website", url: "https://a.example/", label: "a\u202Eb" }]],
+    ["a label with a zero-width space", [{ platform: "website", url: "https://a.example/", label: "a\u200Bb" }]],
     ["a URL that is not a string", [{ platform: "website", url: 42 }]],
   ])("criterion 1 (invalid input): refuses %s", (_label, links) => {
     expect(refusesLinks(links)).toBe(true);

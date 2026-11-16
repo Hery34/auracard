@@ -116,8 +116,8 @@ describe("registerAction", () => {
     ["a blank display name", { ...validRegister, displayName: "   " }],
     ["a display name of 81 characters", { ...validRegister, displayName: "n".repeat(81) }],
     ["a display name with a control character", { ...validRegister, displayName: "Élodie\u0007" }],
-    ["a display name with a right-to-left override (U+202E)", { ...validRegister, displayName: "Élodie‮" }],
-    ["a display name with a zero-width space (U+200B)", { ...validRegister, displayName: "Élo​die" }],
+    ["a display name with a right-to-left override (U+202E)", { ...validRegister, displayName: "Élodie\u202E" }],
+    ["a display name with a zero-width space (U+200B)", { ...validRegister, displayName: "Élo\u200Bdie" }],
     ["a missing display name", without(validRegister, "displayName")],
   ])("criterion 8: %s → { status: 'error', error: 'invalid_input' } without calling the use case", async (_label, fields) => {
     expect(await actions.registerAction(idle, form(fields))).toMatchObject(INVALID_INPUT);
@@ -185,8 +185,8 @@ describe("signInAction", () => {
     ["a missing password", without(validSignIn, "password")],
     ["a display name of 81 characters", { ...validSignIn, displayName: "n".repeat(81) }],
     ["a display name with a control character", { ...validSignIn, displayName: "Élodie\u0007" }],
-    ["a display name with a right-to-left override (U+202E)", { ...validSignIn, displayName: "Élodie‮" }],
-    ["a display name with a zero-width space (U+200B)", { ...validSignIn, displayName: "Élo​die" }],
+    ["a display name with a right-to-left override (U+202E)", { ...validSignIn, displayName: "Élodie\u202E" }],
+    ["a display name with a zero-width space (U+200B)", { ...validSignIn, displayName: "Élo\u200Bdie" }],
   ])("criterion 8: %s → { status: 'error', error: 'invalid_input' } without calling the use case", async (_label, fields) => {
     expect(await actions.signInAction(idle, form(fields))).toMatchObject(INVALID_INPUT);
     expect(mocks.signIn).not.toHaveBeenCalled();
@@ -281,10 +281,12 @@ describe("signOutAction", () => {
 describe("auth-schemas (shared with the 0008 forms)", () => {
   const FORBIDDEN_DISPLAY_NAMES: Array<[string, string]> = [
     ["a control character (U+0007)", "Élodie\u0007"],
-    ["a right-to-left override (U+202E)", "Élodie‮"],
-    ["a zero-width space (U+200B)", "Élo​die"],
-    ["a zero-width joiner (U+200D)", "Élo‍die"],
-    ["a soft hyphen (U+00AD)", "Élo­die"],
+    ["a right-to-left override (U+202E)", "Élodie\u202E"],
+    ["a zero-width space (U+200B)", "Élo\u200Bdie"],
+    ["a zero-width joiner (U+200D)", "Élo\u200Ddie"],
+    ["a soft hyphen (U+00AD)", "Élo\u00ADdie"],
+    ["0022 decision 9: a line separator (U+2028)", "Élodie\u2028Durand"],
+    ["0022 decision 9: a paragraph separator (U+2029)", "Élodie\u2029Durand"],
   ];
 
   it.each(FORBIDDEN_DISPLAY_NAMES)("registerSchema refuses a display name with %s", (_label, displayName) => {

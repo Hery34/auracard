@@ -12,11 +12,9 @@ import { parsePhone, PHONE_MAX_LENGTH } from "@/domain/profile/phone";
 import { PROFILE_TEXT_MAX_LENGTH } from "@/domain/profile/profile";
 import { ok, type Result } from "@/domain/shared/result";
 import { registerSchema } from "@/server/actions/auth-schemas";
+import { SINGLE_LINE_TEXT } from "@/server/actions/single-line-text";
 
 export { HTTPS_URL_MAX_LENGTH, LINK_LABEL_MAX_LENGTH, LINK_PLATFORMS, MAX_LINKS, PHONE_MAX_LENGTH, PROFILE_TEXT_MAX_LENGTH };
-
-/** No control (Cc) nor format (Cf: bidi overrides, zero-width…) character. */
-const SINGLE_LINE_TEXT = /^[^\p{Cc}\p{Cf}]*$/u;
 
 /** Same rule as registration. */
 const displayNameSchema = registerSchema.shape.displayName;
