@@ -14,7 +14,7 @@ export const FORM_ERROR_MESSAGES: Readonly<Record<ActionError, string>> = {
   registration_closed: "Les inscriptions sont fermées pour le moment.",
   invalid_credentials: "Adresse ou mot de passe incorrect.",
   email_not_confirmed: "Confirmez votre adresse e-mail avant de vous connecter.",
-  display_name_required: "Une dernière étape pour rejoindre carnet : complétez le champ signalé.",
+  display_name_required: "Une dernière étape pour rejoindre AuraCard : complétez le champ signalé.",
   unexpected: "Une erreur est survenue, réessayez.",
 };
 
