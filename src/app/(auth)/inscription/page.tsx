@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { RegisterForm } from "@/ui/features/auth/register-form";
 
-export const metadata: Metadata = { title: "Inscription · carnet" };
+export const metadata: Metadata = { title: "Inscription" };
 
 export default function RegisterPage() {
   return (

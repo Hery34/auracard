@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = { title: "Vérifiez votre adresse · carnet" };
+export const metadata: Metadata = { title: "Vérifiez votre adresse" };
 
 export default function CheckEmailPage() {
   return (

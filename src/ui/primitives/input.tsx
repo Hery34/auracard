@@ -1,10 +1,19 @@
-import type { InputHTMLAttributes } from "react";
+import * as React from "react";
 
-export function Input({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
+import { cn } from "@/ui/lib/utils";
+
+function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
     <input
-      className={`block min-h-11 w-full rounded-md border border-neutral-600 bg-white px-3 py-2 text-base text-neutral-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 aria-invalid:border-red-700 ${className}`}
+      type={type}
+      data-slot="input"
+      className={cn(
+        "min-h-11 w-full min-w-0 rounded-lg border border-input bg-muted px-3 py-2 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/70 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/80 disabled:opacity-50 aria-invalid:border-destructive",
+        className,
+      )}
       {...props}
     />
   );
 }
+
+export { Input };
