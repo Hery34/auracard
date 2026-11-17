@@ -19,6 +19,7 @@ L'instance Supabase auto-hébergée de Hery accueillera plusieurs projets. Elle 
 - Isolation nette entre projets, un même compte peut appartenir à plusieurs projets.
 - Un utilisateur inscrit sur un autre projet partage le même identifiant : la page d'inscription de `carnet` doit gérer le cas « compte existant, pas encore membre ».
 - Évolution possible : *custom access token hook* de GoTrue pour inscrire les projets dans le JWT et éviter une requête par vérification (ADR future si la performance l'exige).
+- *Invariant d'instance (Hery, 17/11/2026, fiche 0023)* : tout projet de l'instance qui conserve des données liées à un compte `auth.users` garde sa ligne `platform.project_members` tant que ces données existent. La suppression de compte de carnet supprime `auth.users` dès qu'il ne reste aucune appartenance (ADR 0011) : un projet sans ligne verrait ses données effacées par cascade, ou bloquerait la suppression si sa clé étrangère est en `restrict`.
 
 ## Alternatives écartées
 - Colonne `project_id` dans `public` : une politique oubliée = fuite entre projets.

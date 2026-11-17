@@ -52,6 +52,9 @@ export default async function DashboardPage() {
         <Link href="/tableau-de-bord/qr" className="inline-flex min-h-11 items-center font-medium text-link underline underline-offset-4">
           Mon QR code
         </Link>
+        <Link href="/tableau-de-bord/compte" className="inline-flex min-h-11 items-center font-medium text-link underline underline-offset-4">
+          Mon compte
+        </Link>
       </nav>
       <SignOutButton />
     </main>

@@ -1,15 +1,21 @@
+import { updateTag } from "next/cache";
+
 import { publicMediaUrl } from "@/domain/profile/profile-image";
 import type { Result } from "@/domain/shared/result";
 import type { AuthGateway } from "@/domain/shared/ports/auth-gateway";
 import { env } from "@/server/infrastructure/env";
 import { cryptoIdGenerator } from "@/server/infrastructure/id-generator";
+import { makeSupabaseMediaFolderCleaner } from "@/server/adapters/supabase-media-folder-cleaner";
 import { makeMediaFetcher, MEDIA_FETCH_MAX_BYTES, MEDIA_FETCH_TIMEOUT_MS } from "@/server/adapters/media-fetcher";
 import { requestClientAddress } from "@/server/infrastructure/request-client-address";
 import { createAdminClient } from "@/server/infrastructure/supabase/admin";
 import { makeSupabaseAuthGateway } from "@/server/infrastructure/supabase/auth-gateway";
 import { createPublicSupabaseClient } from "@/server/infrastructure/supabase/public";
 import { createServerSupabaseClient } from "@/server/infrastructure/supabase/server";
+import { profileCacheTag } from "@/server/cache-tags";
 import { makeCachedPublicProfileReader } from "@/server/repositories/cached-public-profile-reader";
+import { makeSupabaseCarnetAccountEraser } from "@/server/repositories/supabase-carnet-account-eraser";
+import { makeSupabaseInstanceAccountRemover } from "@/server/repositories/supabase-instance-account-remover";
 import { makeSupabaseLinkRepository } from "@/server/repositories/supabase-link-repository";
 import { makeSupabaseMediaStorage } from "@/server/adapters/supabase-media-storage";
 import { makeSupabaseMembershipReader } from "@/server/repositories/supabase-membership-reader";
@@ -24,6 +30,7 @@ import { makeSupabaseQrCodeRepository } from "@/server/repositories/supabase-qr-
 import { makeSupabaseQrCodeResolver } from "@/server/repositories/supabase-qr-code-resolver";
 import { makeSupabaseRateLimiter } from "@/server/repositories/supabase-rate-limiter";
 import { makeActivateNfcTag, type ActivateNfcTag } from "@/server/use-cases/activate-nfc-tag";
+import { makeDeleteAccount, type DeleteAccount } from "@/server/use-cases/delete-account";
 import { makeDownloadVCard } from "@/server/use-cases/download-vcard";
 import { makeGetOwnProfile, type GetOwnProfile } from "@/server/use-cases/get-own-profile";
 import { makeGetOwnQrCode, type GetOwnQrCode } from "@/server/use-cases/get-own-qr-code";
@@ -57,6 +64,7 @@ export type Container = {
   releaseNfcTag: ReleaseNfcTag;
   getOwnQrCode: GetOwnQrCode;
   saveQrStyle: SaveQrStyle;
+  deleteAccount: DeleteAccount;
   qrPrintReady: boolean;
   auth: AuthGateway;
 };
@@ -111,6 +119,15 @@ export async function createContainer(): Promise<Container> {
     releaseNfcTag: makeReleaseNfcTag({ auth, rateLimiter, profiles, tags }),
     getOwnQrCode: makeGetOwnQrCode({ auth, profiles, qrCodes, siteUrl: env.SITE_URL }),
     saveQrStyle: makeSaveQrStyle({ auth, rateLimiter, profiles, qrCodes }),
+    deleteAccount: makeDeleteAccount({
+      auth,
+      rateLimiter,
+      profiles,
+      mediaFolder: makeSupabaseMediaFolderCleaner(server),
+      carnetAccount: makeSupabaseCarnetAccountEraser(server),
+      instanceAccounts: makeSupabaseInstanceAccountRemover(admin),
+      profileCache: { expire: (slug) => updateTag(profileCacheTag(slug)) },
+    }),
     qrPrintReady: env.QR_PRINT_READY,
   };
 }
