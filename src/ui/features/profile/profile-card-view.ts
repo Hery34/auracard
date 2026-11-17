@@ -30,7 +30,7 @@ export type ProfileCardView = {
 };
 
 /** Platforms whose URL carries a phone number: protected like the phone itself. */
-const PROTECTED_PLATFORMS: ReadonlySet<LinkPlatform> = new Set(["whatsapp"]);
+export const PROTECTED_PLATFORMS: ReadonlySet<LinkPlatform> = new Set(["whatsapp"]);
 
 const PHONE_SEPARATORS = /[\s.()-]/g;
 

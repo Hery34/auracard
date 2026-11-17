@@ -64,8 +64,13 @@ export const updateProfileSchema = z.object({
   bio: optional(
     z
       .string()
-      .max(PROFILE_TEXT_MAX_LENGTH.bio)
-      .refine((text) => !FORBIDDEN_LABEL_CHARACTERS.test(text.replace(/[\n\r]/g, ""))),
+      .transform((text) => text.replace(/\r\n?/g, "\n"))
+      .pipe(
+        z
+          .string()
+          .max(PROFILE_TEXT_MAX_LENGTH.bio)
+          .refine((text) => !FORBIDDEN_LABEL_CHARACTERS.test(text.replace(/\n/g, ""))),
+      ),
   ),
   contactEmail: optional(z.email().max(PROFILE_TEXT_MAX_LENGTH.contactEmail)),
   phone: optional(parsedWith(parsePhone)),

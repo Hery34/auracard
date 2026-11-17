@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { createContainer } from "@/server/container";
@@ -34,6 +35,18 @@ export default async function DashboardPage() {
           <dd className="text-lg">{profile.slug}</dd>
         </div>
       </dl>
+      <nav aria-label="Mon profil" className="flex flex-col gap-2">
+        <Link href="/tableau-de-bord/profil" className="inline-flex min-h-11 items-center font-medium text-link underline underline-offset-4">
+          Modifier mon profil
+        </Link>
+        <Link
+          href={`/p/${profile.slug}`}
+          prefetch={false}
+          className="inline-flex min-h-11 items-center font-medium text-link underline underline-offset-4"
+        >
+          Voir ma page publique
+        </Link>
+      </nav>
       <SignOutButton />
     </main>
   );

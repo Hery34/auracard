@@ -14,6 +14,7 @@ const EXPECTED_ROUTES: ReadonlyArray<{ route: string; group: string }> = [
   { route: "/connexion", group: "(auth)" },
   { route: "/verifier-email", group: "(auth)" },
   { route: "/tableau-de-bord", group: "(dashboard)" },
+  { route: "/tableau-de-bord/profil", group: "(dashboard)" },
 ];
 
 type SegmentFile = { file: string; route: string };
