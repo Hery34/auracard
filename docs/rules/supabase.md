@@ -4,7 +4,7 @@
 - L'instance héberge **plusieurs projets**. Le schéma `platform` est le **registre commun** : `platform.projects` liste les projets, `platform.project_members` dit quel compte appartient à quel projet (voir ADR 0002).
 - **DOIT** : tout objet du projet vit dans le schéma `carnet`. Rien dans `public`.
 - **DOIT** : le schéma `carnet` est exposé à PostgREST (variable `PGRST_DB_SCHEMAS` de l'instance auto-hébergée) et le client Supabase est créé avec `db: { schema: 'carnet' }`.
-- **DOIT** : le stockage utilise des *buckets* préfixés `carnet-` (`carnet-avatars`, `carnet-banners`).
+- **DOIT** : le stockage utilise des *buckets* préfixés `carnet-` (`carnet-media`).
 - **DOIT NE PAS** : modifier `platform` sans ADR acceptée par Hery — il est partagé avec les futurs projets.
 
 ## Authentification partagée

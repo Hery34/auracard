@@ -21,6 +21,7 @@
 
 ## Jetons
 - Jetons d'annulation / report / activation : 32 octets aléatoires minimum, **seul le hash** (SHA-256) est stocké, expiration obligatoire, usage unique quand c'est pertinent.
+- **Exception validée par Hery (17/11/2026, fiche 0024)** : code d'activation **imprimé** remis avec une puce NFC. 10 caractères Crockford (≈ 50 bits), haché en bcrypt (`crypt`/`gen_salt('bf')`), sans expiration (valable tant que la puce existe, réutilisable après libération). Conditions : identifiant de puce aléatoire et non énumérable, réponse identique pour toute erreur (puce inconnue, code faux, puce prise), **limitation de débit obligatoire** par compte et par adresse sur l'activation.
 
 ## RGPD
 - **DOIT** : minimisation : pas d'adresse IP brute stockée dans les statistiques (hash journalier salé au plus, ou pays dérivé puis IP jetée) ; user-agent réduit à une catégorie (mobile / desktop / bot).
