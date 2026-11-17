@@ -2,7 +2,7 @@
 
 ## Version et veille de sécurité
 - **DOIT** : version exacte épinglée (`"next": "16.x.y"`, sans `^`), alignée avec `react` / `react-dom` recommandés par cette version.
-- **DOIT** : à l'initialisation, prendre la **dernière version corrigée** publiée (référence au 14/11/2026 : 16.4.5, correctifs du 3 novembre 2026). Vérifier sur https://nextjs.org/blog avant d'installer, car Vercel publie des correctifs de sécurité mensuels.
+- **DOIT** : à l'initialisation, prendre la **dernière version corrigée** publiée (référence au 14/11/2026 : 16.4.6, correctifs du 3 novembre 2026). Vérifier sur https://nextjs.org/blog avant d'installer, car Vercel publie des correctifs de sécurité mensuels.
 - **DOIT** : contrôle mensuel par `security-auditor` (blog Next.js + avis GitHub de `vercel/next.js`) ; `pnpm audit` en CI, sachant qu'il peut réagir avec retard.
 - Mise à jour de version : fiche dédiée, `pnpm check` + E2E verts avant fusion.
 
@@ -16,7 +16,8 @@
 - **DOIT** : Server Components par défaut ; `"use client"` sur les seules feuilles interactives.
 - **DOIT** : `params` et `searchParams` traités comme asynchrones (Next 16).
 - Groupes de routes : `(public)` pour profil, redirections NFC/QR et rendez-vous ; `(dashboard)` pour l'espace connecté ; `(auth)` pour connexion/inscription.
-- Page profil : génération statique + `revalidateTag('profile:<id>')` à chaque modification.
+- Page profil : génération statique, tag de cache profile:<slug> posé par la page, la vCard et le 404 ; updateTag('profile:<slug>') dans les Server Actions à chaque modification (ancien et nouveau slug le jour où il deviendra modifiable).
+
 
 ## Autorisation
 - **DOIT** : le `proxy` (ex-`middleware`) ne sert qu'au confort (redirection vers la connexion). **Il ne protège rien.** Plusieurs contournements du middleware ont été corrigés en 2026.

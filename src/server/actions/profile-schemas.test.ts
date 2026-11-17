@@ -16,7 +16,7 @@
  * //   jobTitle, company: trim, blank → null, ≤ 80, no \p{Cc} nor \p{Cf};
  * //   bio: trim, blank → null, ≤ 500; decision 10: the forbidden code points of the link label (U+0000–U+001F,
  * //   U+007F–U+009F, U+00AD, U+061C, U+180E, U+200B, U+200E, U+200F, U+2028–U+202E, U+2060–U+2064, U+2066–U+2069, U+FEFF)
- * //   except \n and \r; U+200C and U+200D allowed;
+ * //   except \n and \r; U+200C and U+200D allowed; 0020 decision 11: \r\n and lone \r normalized to \n before the bound;
  * //   contactEmail: trim, blank → null, e-mail, ≤ 254; phone: trim, blank → null, parsePhone;
  * //   websiteUrl: trim, blank → null, parseHttpsUrl (stored href); isPublished, isIndexable: "on" → true, absent → false, anything else refused;
  * //   unknown keys (slug, id, owner_id…) stripped.
@@ -236,14 +236,30 @@ describe("updateProfileSchema", () => {
     expect(parsed.error?.issues.map((issue) => issue.path[0])).toContain(field);
   });
 
-  it("accepts line breaks in the bio (\\n and \\r\\n)", () => {
+  it("0020 decision 11: normalizes the \\r\\n line breaks of the bio to \\n (FormData sends \\r\\n)", () => {
     expect(parsedProfile({ ...validProfileForm, bio: "Ligne 1\r\nLigne 2\nLigne 3" }).bio).toBe(
-      "Ligne 1\r\nLigne 2\nLigne 3",
+      "Ligne 1\nLigne 2\nLigne 3",
     );
   });
 
-  it("decision 10: accepts a lone \\r in the bio", () => {
-    expect(parsedProfile({ ...validProfileForm, bio: "Ligne 1\rLigne 2" }).bio).toBe("Ligne 1\rLigne 2");
+  it("0020 decision 11: normalizes a lone \\r in the bio to \\n", () => {
+    expect(parsedProfile({ ...validProfileForm, bio: "Ligne 1\rLigne 2\r\rLigne 4" }).bio).toBe(
+      "Ligne 1\nLigne 2\n\nLigne 4",
+    );
+  });
+
+  it("0020 decision 11: accepts a bio of 500 characters counted after normalization, sent with 10 \\r\\n line breaks", () => {
+    const bio = Array.from({ length: 11 }, (_, index) => "n".repeat(index === 0 ? 40 : 45)).join("\r\n");
+
+    expect(bio).toHaveLength(510);
+    expect(parsedProfile({ ...validProfileForm, bio }).bio).toBe(bio.replaceAll("\r\n", "\n"));
+    expect(parsedProfile({ ...validProfileForm, bio }).bio).toHaveLength(500);
+  });
+
+  it("0020 decision 11: refuses a bio of 501 characters counted after normalization", () => {
+    const bio = Array.from({ length: 11 }, (_, index) => "n".repeat(index === 0 ? 41 : 45)).join("\r\n");
+
+    expect(refusesProfile({ ...validProfileForm, bio })).toBe(true);
   });
 
   it("decision 10: accepts U+200C and U+200D in the bio (allowed in the label too)", () => {

@@ -8,7 +8,7 @@ const SIGN_IN_PATH = "/connexion";
 
 /**
  * Comfort only, every page checks again: refreshes the session cookies and sends a visitor without a
- * session from the dashboard to the sign-in page. Nothing is protected here (`docs/rules/nextjs.md`).
+ * session from the dashboard to the sign-in page (navigations only). Nothing is protected here (`docs/rules/nextjs.md`).
  * No reverse redirection: a signed-in account without a profile must still reach `/connexion`.
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
@@ -39,7 +39,10 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user === null) {
+  // A Server Action (always a POST with `Next-Action`) checks the session itself and answers `unauthenticated`;
+  // a redirect would break its response. Any other request without a session, a GET included, is redirected.
+  const isServerAction = request.method === "POST" && request.headers.has("next-action");
+  if (user === null && !isServerAction) {
     const signIn = request.nextUrl.clone();
     signIn.pathname = SIGN_IN_PATH;
     signIn.search = "";
