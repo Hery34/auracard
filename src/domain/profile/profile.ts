@@ -35,6 +35,7 @@ export type PublicProfile = {
   bio: string | null;
   avatarUrl: string | null;
   bannerUrl: string | null;
+  logoUrl: string | null;
   contactEmail: string | null;
   phone: string | null;
   websiteUrl: string | null;

@@ -10,14 +10,21 @@
  * export type PublicContainer = { getPublicProfile: GetPublicProfile; downloadVCard: DownloadVCardFromRequest };
  * // The route handler passes `request.headers`; the address is computed by `requestClientAddress(headers)`. The
  * // container never imports `next/headers` (nor `cookies()`). `getVCard` is no longer exposed.
+ *
+ * 0021 (decisions 5 and 6): the public reader receives the Supabase origin (`makeSupabasePublicProfileReader(client,
+ * env.NEXT_PUBLIC_SUPABASE_URL)`); the vCard reads the avatar through `makeMediaFetcher({ supabaseUrl:
+ * env.NEXT_PUBLIC_SUPABASE_URL, fetch: globalThis.fetch, timeoutMs: MEDIA_FETCH_TIMEOUT_MS, maxBytes: MEDIA_FETCH_MAX_BYTES })`.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { RateLimiter } from "@/domain/shared/ports/rate-limiter";
+import { ok } from "@/domain/shared/result";
 
-import { stubValidEnv } from "../../tests/builders/env";
+import { stubValidEnv, VALID_ENV } from "../../tests/builders/env";
 import { makeCallLog } from "../../tests/builders/call-log";
-import { fakePublicProfileReader } from "../../tests/builders/fake-public-profile-reader";
+import { fakeMediaFetcher } from "../../tests/builders/fake-media-fetcher";
+import { aPublicProfile, fakePublicProfileReader } from "../../tests/builders/fake-public-profile-reader";
+import { imageBytes } from "../../tests/builders/images";
 import { fakeRateLimiter } from "../../tests/builders/fake-rate-limiter";
 
 type CacheOptions = { tags: string[] };
@@ -42,6 +49,7 @@ const mocks = vi.hoisted(() => ({
   makeSupabasePublicProfileReader: vi.fn(),
   makeSupabaseRateLimiter: vi.fn(),
   makeCachedPublicProfileReader: vi.fn(),
+  makeMediaFetcher: vi.fn(),
   headers: vi.fn(),
   nextHeadersLoaded: false,
 }));
@@ -90,6 +98,11 @@ vi.mock("@/server/repositories/cached-public-profile-reader", async (importOrigi
   return { makeCachedPublicProfileReader: mocks.makeCachedPublicProfileReader };
 });
 
+vi.mock("@/server/adapters/media-fetcher", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/adapters/media-fetcher")>();
+  return { ...actual, makeMediaFetcher: mocks.makeMediaFetcher };
+});
+
 let createPublicContainer: typeof import("@/server/container").createPublicContainer;
 let log = makeCallLog();
 
@@ -115,6 +128,7 @@ beforeEach(() => {
   mocks.makeSupabaseRateLimiter
     .mockReset()
     .mockImplementation((): RateLimiter => fakeRateLimiter({ log }));
+  mocks.makeMediaFetcher.mockReset().mockImplementation(() => fakeMediaFetcher({ log, bytes: imageBytes("jpeg") }));
 });
 
 describe("createPublicContainer — wiring", () => {
@@ -150,7 +164,7 @@ describe("createPublicContainer — wiring", () => {
     expect(vcard.ok && vcard.value?.fileName).toBe(`${SLUG}.vcf`);
     expect(mocks.makeCachedPublicProfileReader).toHaveBeenCalledTimes(1);
     expect(mocks.makeSupabasePublicProfileReader).toHaveBeenCalledTimes(1);
-    expect(mocks.makeSupabasePublicProfileReader).toHaveBeenCalledWith(mocks.publicClient);
+    expect(mocks.makeSupabasePublicProfileReader).toHaveBeenCalledWith(mocks.publicClient, VALID_ENV.NEXT_PUBLIC_SUPABASE_URL);
     expect(mocks.cacheCalls.map((call) => call.options.tags)).toStrictEqual([
       [`profile:${SLUG}`],
       [`profile:${SLUG}`],
@@ -198,5 +212,29 @@ describe("createPublicContainer — wiring", () => {
       { scope: "vcard", subject: "203.0.113.7" },
       { scope: "vcard", subject: "203.0.113.8" },
     ]);
+  });
+
+  it("0021 decision 5: the public reader builds the image URLs from NEXT_PUBLIC_SUPABASE_URL", () => {
+    createPublicContainer();
+
+    expect(mocks.makeSupabasePublicProfileReader).toHaveBeenCalledWith(mocks.publicClient, VALID_ENV.NEXT_PUBLIC_SUPABASE_URL);
+  });
+
+  it("0021 decision 6: the vCard reads the avatar through the media fetcher bound to the Supabase origin, 3 s and 1 MiB", async () => {
+    const avatarUrl = `${VALID_ENV.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/carnet-media/c1d2e3f4-5a6b-4c7d-8e9f-0a1b2c3d4e5f/avatar-1a2b3c4d-0000-4000-8000-000000000001.jpg`;
+    mocks.makeSupabasePublicProfileReader.mockImplementation(() =>
+      fakePublicProfileReader({ log, results: [ok(aPublicProfile({ slug: SLUG, avatarUrl }))] }),
+    );
+
+    const vcard = await createPublicContainer().downloadVCard(SLUG, requestHeaders());
+
+    expect(mocks.makeMediaFetcher).toHaveBeenCalledWith({
+      supabaseUrl: VALID_ENV.NEXT_PUBLIC_SUPABASE_URL,
+      fetch: expect.any(Function),
+      timeoutMs: 3000,
+      maxBytes: 1024 * 1024,
+    });
+    expect(log.inputsOf("media", "fetch")).toStrictEqual([avatarUrl]);
+    expect(vcard.ok && vcard.value?.content).toContain("PHOTO;ENCODING=b;TYPE=JPEG:");
   });
 });

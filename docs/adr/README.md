@@ -18,6 +18,7 @@ Une ADR acceptée n'est jamais réécrite : on en écrit une nouvelle qui la rem
 | 0011 | Usages autorisés du client `service_role` (v2 : limitation de débit) | Acceptée |
 | 0012 | Emplacement des Server Actions et frontière `src/app` → `src/server` | Acceptée |
 | 0013 | Shadcn/ui, thème AuraCard et dossier `src/ui/lib/` | Acceptée |
+| 0014 | Stockage des médias du profil (Supabase Storage) | Acceptée |
 
 ## Modèle
 ```

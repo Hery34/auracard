@@ -4,9 +4,10 @@ import { cache } from "react";
 
 import type { PublicProfile } from "@/domain/profile/profile";
 import { createPublicContainer } from "@/server/container";
+import { MEDIA_ORIGIN } from "@/ui/features/profile/media-origin";
 import { ProfileCard } from "@/ui/features/profile/profile-card";
 import { toProfileCardView } from "@/ui/features/profile/profile-card-view";
-import { safeHttpsHref } from "@/ui/features/profile/safe-href";
+import { safeImageSrc } from "@/ui/features/profile/safe-image-src";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -38,7 +39,7 @@ const loadProfile = cache(async (slug: string): Promise<PublicProfile> => {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const profile = await loadProfile((await params).slug);
   const description = [profile.jobTitle, profile.company].filter((part) => part !== null).join(" · ");
-  const avatar = safeHttpsHref(profile.avatarUrl);
+  const avatar = safeImageSrc(profile.avatarUrl, MEDIA_ORIGIN);
   return {
     title: profile.displayName,
     ...(description === "" ? {} : { description }),
@@ -47,7 +48,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: "profile",
       title: profile.displayName,
       ...(description === "" ? {} : { description }),
-      ...(avatar === null ? {} : { images: [{ url: avatar.href, alt: profile.displayName }] }),
+      ...(avatar === null ? {} : { images: [{ url: avatar, alt: profile.displayName }] }),
     },
   };
 }
@@ -56,7 +57,7 @@ export default async function PublicProfilePage({ params }: Props) {
   const profile = await loadProfile((await params).slug);
   return (
     <main data-theme="system" className="mx-auto w-full max-w-md px-4 py-8">
-      <ProfileCard view={toProfileCardView(profile)} />
+      <ProfileCard view={toProfileCardView(profile, MEDIA_ORIGIN)} />
     </main>
   );
 }

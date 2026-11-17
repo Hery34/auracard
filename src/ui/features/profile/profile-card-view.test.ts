@@ -8,6 +8,8 @@ import { aPublicProfile } from "../../../../tests/builders/fake-public-profile-r
 const WHATSAPP_URL = "https://wa.me/33612345678";
 const PHONE = "+33 6 12 34 56 78";
 const EMAIL = "elodie.durand+carte@atelier-merel.example";
+const MEDIA_ORIGIN = "https://supabase.carnet.example";
+const LOCAL_MEDIA_ORIGIN = "http://127.0.0.1:54321";
 
 function hrefOf(link: ProfileLinkView | undefined): string {
   if (link === undefined) {
@@ -29,6 +31,7 @@ describe("toProfileCardView — public page view model (0018, decisions 8 and 9)
           { platform: "youtube", url: "https://www.youtube.com/@elodie", label: null, position: 5 },
         ],
       }),
+      MEDIA_ORIGIN,
     );
 
     expect(view.links.map(hrefOf)).toEqual([
@@ -38,7 +41,7 @@ describe("toProfileCardView — public page view model (0018, decisions 8 and 9)
   });
 
   it("drops a non-https website and avatar", () => {
-    const view = toProfileCardView(aPublicProfile({ websiteUrl: "javascript:alert(1)", avatarUrl: "http://cdn.example/a.png" }));
+    const view = toProfileCardView(aPublicProfile({ websiteUrl: "javascript:alert(1)", avatarUrl: "http://cdn.example/a.png" }), MEDIA_ORIGIN);
 
     expect(view.website).toBeNull();
     expect(view.avatarUrl).toBeNull();
@@ -53,6 +56,7 @@ describe("toProfileCardView — public page view model (0018, decisions 8 and 9)
           { platform: "instagram", url: "https://www.instagram.com/elodie", label: null, position: 1 },
         ],
       }),
+      MEDIA_ORIGIN,
     );
 
     expect(view.links.map((link) => link.platform)).toEqual(["linkedin", "instagram", "github"]);
@@ -63,6 +67,7 @@ describe("toProfileCardView — public page view model (0018, decisions 8 and 9)
       aPublicProfile({
         links: [{ platform: "whatsapp", url: WHATSAPP_URL, label: null, position: 0 }],
       }),
+      MEDIA_ORIGIN,
     );
 
     const [link] = view.links;
@@ -77,7 +82,7 @@ describe("toProfileCardView — public page view model (0018, decisions 8 and 9)
   });
 
   it("protects the phone and the e-mail: revealed on click", () => {
-    const view = toProfileCardView(aPublicProfile({ phone: PHONE, contactEmail: EMAIL }));
+    const view = toProfileCardView(aPublicProfile({ phone: PHONE, contactEmail: EMAIL }), MEDIA_ORIGIN);
 
     expect(view.phone).not.toBeNull();
     expect(view.email).not.toBeNull();
@@ -94,7 +99,7 @@ describe("toProfileCardView — public page view model (0018, decisions 8 and 9)
     ["a colon", "mailto:x@y.fr"],
     ["a space", "x y@y.fr"],
   ])("decision 10: an e-mail with %s is not shown (email: null), like a missing one", (_case, contactEmail) => {
-    const view = toProfileCardView(aPublicProfile({ contactEmail }));
+    const view = toProfileCardView(aPublicProfile({ contactEmail }), MEDIA_ORIGIN);
 
     expect(view.email).toBeNull();
     expect(JSON.stringify(view)).not.toContain("x@y.fr");
@@ -110,6 +115,7 @@ describe("toProfileCardView — public page view model (0018, decisions 8 and 9)
           { platform: "linkedin", url: "https://www.linkedin.com/in/elodie", label: null, position: 1 },
         ],
       }),
+      MEDIA_ORIGIN,
     );
 
     const serialized = JSON.stringify(view);
@@ -119,6 +125,61 @@ describe("toProfileCardView — public page view model (0018, decisions 8 and 9)
   });
 
   it("points the vCard button to /v/{slug}", () => {
-    expect(toProfileCardView(aPublicProfile({ slug: "elodie-durand-merel" })).vcardHref).toBe("/v/elodie-durand-merel");
+    expect(toProfileCardView(aPublicProfile({ slug: "elodie-durand-merel" }), MEDIA_ORIGIN).vcardHref).toBe("/v/elodie-durand-merel");
+  });
+
+  describe("0021: images (contract frozen by test-engineer)", () => {
+    // ProfileCardView gains `bannerUrl: string | null` and `logoUrl: string | null`; avatarUrl, bannerUrl and logoUrl
+    // all go through safeImageSrc (src/ui/features/profile/safe-image-src.ts).
+    const PREFIX = "https://supabase.carnet.example/storage/v1/object/public/carnet-media/c1d2e3f4-5a6b-4c7d-8e9f-0a1b2c3d4e5f/";
+    const LOCAL_PREFIX = "http://127.0.0.1:54321/storage/v1/object/public/carnet-media/c1d2e3f4-5a6b-4c7d-8e9f-0a1b2c3d4e5f/";
+
+    it("decision 6: avatar, banner and logo URLs are kept for display", () => {
+      const view = toProfileCardView(
+        aPublicProfile({
+          avatarUrl: `${PREFIX}avatar-1a2b3c4d-0000-4000-8000-000000000001.jpg`,
+          bannerUrl: `${PREFIX}banner-1a2b3c4d-0000-4000-8000-000000000001.webp`,
+          logoUrl: `${PREFIX}logo-1a2b3c4d-0000-4000-8000-000000000001.png`,
+        }),
+        MEDIA_ORIGIN,
+      );
+
+      expect(view.avatarUrl).toBe(`${PREFIX}avatar-1a2b3c4d-0000-4000-8000-000000000001.jpg`);
+      expect(view.bannerUrl).toBe(`${PREFIX}banner-1a2b3c4d-0000-4000-8000-000000000001.webp`);
+      expect(view.logoUrl).toBe(`${PREFIX}logo-1a2b3c4d-0000-4000-8000-000000000001.png`);
+      expect(view.initials).toBe("ED");
+    });
+
+    it("the local stack (http://127.0.0.1:54321) is displayed too", () => {
+      const view = toProfileCardView(aPublicProfile({ avatarUrl: `${LOCAL_PREFIX}avatar-1a2b3c4d-0000-4000-8000-000000000001.jpg` }), LOCAL_MEDIA_ORIGIN);
+
+      expect(view.avatarUrl).toBe(`${LOCAL_PREFIX}avatar-1a2b3c4d-0000-4000-8000-000000000001.jpg`);
+    });
+
+    it("decision 12: an image from another origin than the configured one is dropped", () => {
+      const view = toProfileCardView(
+        aPublicProfile({
+          avatarUrl: `${PREFIX}avatar-1a2b3c4d-0000-4000-8000-000000000001.jpg`,
+          bannerUrl: `${PREFIX}banner-1a2b3c4d-0000-4000-8000-000000000001.webp`,
+          logoUrl: `${PREFIX}logo-1a2b3c4d-0000-4000-8000-000000000001.png`,
+        }),
+        "https://other-project.example",
+      );
+
+      expect([view.avatarUrl, view.bannerUrl, view.logoUrl]).toStrictEqual([null, null, null]);
+    });
+
+    it("decision 5: unsafe banner and logo URLs are dropped", () => {
+      const view = toProfileCardView(aPublicProfile({ bannerUrl: "javascript:alert(1)", logoUrl: "http://cdn.example/l.png" }), MEDIA_ORIGIN);
+
+      expect(view.bannerUrl).toBeNull();
+      expect(view.logoUrl).toBeNull();
+    });
+
+    it("no image → null URLs", () => {
+      const view = toProfileCardView(aPublicProfile(), MEDIA_ORIGIN);
+
+      expect([view.avatarUrl, view.bannerUrl, view.logoUrl]).toStrictEqual([null, null, null]);
+    });
   });
 });

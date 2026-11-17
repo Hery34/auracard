@@ -1,6 +1,7 @@
 import { ContactReveal } from "@/ui/features/profile/contact-reveal";
 import { InAppBrowserNotice } from "@/ui/features/profile/in-app-browser-notice";
 import { ProfileAvatar } from "@/ui/features/profile/profile-avatar";
+import { ProfileBanner, ProfileLogo } from "@/ui/features/profile/profile-media";
 import type { ProfileCardView } from "@/ui/features/profile/profile-card-view";
 import { ProfileLinkList } from "@/ui/features/profile/profile-link-list";
 import { scramble } from "@/ui/features/profile/scrambled-text";
@@ -10,11 +11,13 @@ import { VCardDownload } from "@/ui/features/profile/vcard-download";
 export function ProfileCard({ view }: { view: ProfileCardView }) {
   return (
     <article className="flex flex-col gap-6">
+      {view.bannerUrl !== null && <ProfileBanner src={view.bannerUrl} />}
       <header className="flex flex-col items-center gap-2 text-center">
-        <ProfileAvatar avatarUrl={view.avatarUrl} initials={view.initials} alt={view.displayName} />
+        <ProfileAvatar avatarUrl={view.avatarUrl} initials={view.initials} />
         <h1 className="text-2xl font-semibold text-foreground">{view.displayName}</h1>
         {view.jobTitle !== null && <p className="text-muted-foreground">{view.jobTitle}</p>}
         {view.company !== null && <p className="font-medium text-muted-foreground">{view.company}</p>}
+        {view.logoUrl !== null && <ProfileLogo src={view.logoUrl} company={view.company} />}
         {view.bio !== null && <p className="whitespace-pre-line text-foreground">{view.bio}</p>}
       </header>
 

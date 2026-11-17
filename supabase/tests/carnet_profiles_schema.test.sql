@@ -24,8 +24,9 @@ select has_table('carnet', 'profiles', 'critère 1 : la table carnet.profiles ex
 select columns_are(
   'carnet', 'profiles',
   array['id', 'owner_id', 'slug', 'display_name', 'job_title', 'company', 'bio', 'avatar_url', 'banner_url',
-        'theme', 'contact_email', 'phone', 'website_url', 'is_published', 'is_indexable', 'created_at', 'updated_at'],
-  'critère 1 : profiles a exactement les colonnes de la décision 1'
+        'theme', 'contact_email', 'phone', 'website_url', 'is_published', 'is_indexable', 'created_at', 'updated_at',
+        'logo_url'],
+  'critère 1 (amendé 0021 : logo_url) : profiles a exactement les colonnes de la décision 1'
 );
 
 select col_type_is('carnet', 'profiles', 'id', 'uuid', 'critère 1 : profiles.id est uuid');
@@ -492,8 +493,8 @@ select has_view('carnet', 'public_profiles', 'critère 5 : la vue carnet.public_
 select columns_are(
   'carnet', 'public_profiles',
   array['slug', 'display_name', 'job_title', 'company', 'bio', 'avatar_url', 'banner_url', 'theme',
-        'contact_email', 'phone', 'website_url', 'is_indexable'],
-  'critère 5 : public_profiles expose exactement les colonnes publiques de la décision 7 (ni id, ni owner_id, ni horodatages)'
+        'contact_email', 'phone', 'website_url', 'is_indexable', 'logo_url'],
+  'critère 5 (amendé 0021, décision 9 : logo_url) : public_profiles expose exactement les colonnes publiques de la décision 7 (ni id, ni owner_id, ni horodatages)'
 );
 select ok(
   exists (
@@ -710,11 +711,11 @@ select throws_ok(
   '23514', null, 'critère 1 (décision 4) : banner_url de 2049 caractères est refusée'
 );
 select lives_ok(
-  $$insert into carnet.profiles (owner_id, slug, display_name, job_title, company, bio, contact_email, phone, website_url, avatar_url, banner_url)
+  $$insert into carnet.profiles (owner_id, slug, display_name, job_title, company, bio, contact_email, phone, website_url)
     values ('00000000-0000-4000-8000-000000000509', 'len-max-0005',
             repeat('a', 80), repeat('a', 80), repeat('a', 80), repeat('a', 500), repeat('a', 254), repeat('1', 32),
-            'https://a.test/' || repeat('a', 2033), repeat('a', 2048), repeat('a', 2048))$$,
-  'critère 1 (décision 4) : toutes les colonnes exactement à leur longueur maximale sont acceptées (bornes incluses)'
+            'https://a.test/' || repeat('a', 2033))$$,
+  'critère 1 (décision 4, amendé 0021 : avatar_url et banner_url sont des noms d''objet au format fixe, profiles_media_names_check) : toutes les colonnes de texte libre exactement à leur longueur maximale sont acceptées (bornes incluses)'
 );
 
 -- Contrainte profiles_theme_check : theme est un objet JSON de 4096 octets au plus.

@@ -8,8 +8,8 @@ permissions:
 env:
   NEXT_TELEMETRY_DISABLED: "1"
   SUPABASE_CLI_VERSION: "2.120.0"
-  # Tests only need Postgres, GoTrue, PostgREST and Kong (enable_confirmations = false: no e-mail sent).
-  SUPABASE_EXCLUDED_SERVICES: realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+  # Tests only need Postgres, GoTrue, PostgREST, Storage (0021) and Kong (enable_confirmations = false: no e-mail sent).
+  SUPABASE_EXCLUDED_SERVICES: realtime,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
 
 jobs:
   check:

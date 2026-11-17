@@ -2,6 +2,7 @@ import { HTTPS_URL_MAX_LENGTH } from "@/domain/profile/https-url";
 import { LINK_LABEL_MAX_LENGTH, MAX_LINKS } from "@/domain/profile/link";
 import { PROFILE_TEXT_MAX_LENGTH } from "@/domain/profile/profile";
 import type { ProfileActionError } from "@/server/actions/profile";
+import type { ProfileImageActionError } from "@/server/actions/profile-image";
 import type { TextFieldName } from "@/ui/features/profile-editor/editor-state";
 
 export const SAVED_MESSAGE = "Modifications enregistrées.";
@@ -12,6 +13,16 @@ export const PROFILE_KEPT_MESSAGE = "Vos informations ont été enregistrées, m
 export const FORM_ERROR_MESSAGES: Readonly<Record<Exclude<ProfileActionError, "unauthenticated">, string>> = {
   invalid_input: "Vérifiez les champs signalés.",
   rate_limited: "Trop de modifications en peu de temps, réessayez dans quelques minutes.",
+  not_found: "Une erreur est survenue, réessayez.",
+  unexpected: "Une erreur est survenue, réessayez.",
+};
+
+/** Next to the image control, announced by `role="alert"`; `invalid_file` also when the browser cannot decode the file. */
+export const IMAGE_ERROR_MESSAGES: Readonly<Record<Exclude<ProfileImageActionError, "unauthenticated">, string>> = {
+  invalid_file: "Choisissez une image JPEG, PNG ou WebP.",
+  too_large: "L’image dépasse 2 Mo, choisissez-en une plus légère.",
+  invalid_input: "Une erreur est survenue, réessayez.",
+  rate_limited: FORM_ERROR_MESSAGES.rate_limited,
   not_found: "Une erreur est survenue, réessayez.",
   unexpected: "Une erreur est survenue, réessayez.",
 };

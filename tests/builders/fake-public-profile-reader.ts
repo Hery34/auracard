@@ -13,6 +13,7 @@ export function aPublicProfile(overrides: Partial<PublicProfile> = {}): PublicPr
     bio: null,
     avatarUrl: null,
     bannerUrl: null,
+    logoUrl: null,
     contactEmail: null,
     phone: null,
     websiteUrl: "https://atelier-merel.example/",
