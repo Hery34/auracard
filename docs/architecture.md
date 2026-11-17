@@ -119,10 +119,10 @@ transaction métier ──► insert carnet.outbox ──► n8n (interrogation 
 
 ## 8. Environnements et hébergement
 - **Supabase** : instance auto-hébergée existante (UE), schéma `carnet`. Une base de développement locale (`supabase start`) pour les tests.
-- **Next.js** : hébergement **à décider** (Vercel ou conteneur Docker sur ton infrastructure) — ADR à rédiger avant la phase 5.
+- **Next.js** : Docker sur VPS EasyPanel (ADR 0007).
 - **n8n** : instance existante, workflows versionnés dans `n8n/workflows/`.
-- Domaine : URL courte et stable pour les puces et QR (à choisir — elle sera gravée dans le matériel, donc irréversible).
-
+- Domaine : `auracard.fr` (ADR 0015), URL courte et stable pour les puces et QR, gravée dans le matériel donc irréversible ; branché plus tard.
+s
 ## 9. Phases (révisées)
 1. **Socle** : initialisation Next.js (version corrigée la plus récente), outillage (`pnpm check`, CI), registre `platform`, schéma `carnet` de base, inscription + appartenance.
 2. **Profil public & vCard** : éditeur minimal, page profil, vCard, liens.

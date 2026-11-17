@@ -2,6 +2,7 @@
 
 ## Organisation de l'instance
 - L'instance héberge **plusieurs projets**. Le schéma `platform` est le **registre commun** : `platform.projects` liste les projets, `platform.project_members` dit quel compte appartient à quel projet (voir ADR 0002).
+- Tout projet de l'instance qui garde des données liées à un compte doit avoir une ligne pour ce compte dans `platform.project_members` : la suppression de compte de carnet supprime `auth.users` dès qu'il ne reste plus aucune appartenance (ADR 0002, ADR 0011).
 - **DOIT** : tout objet du projet vit dans le schéma `carnet`. Rien dans `public`.
 - **DOIT** : le schéma `carnet` est exposé à PostgREST (variable `PGRST_DB_SCHEMAS` de l'instance auto-hébergée) et le client Supabase est créé avec `db: { schema: 'carnet' }`.
 - **DOIT** : le stockage utilise des *buckets* préfixés `carnet-` (`carnet-media`).
@@ -27,3 +28,5 @@
 - Index sur toutes les clés étrangères et sur les colonnes utilisées dans les politiques RLS.
 - Les fonctions d'autorisation appelées dans les politiques sont enveloppées dans `(select …)` pour être évaluées une fois par requête.
 - Statistiques : table d'événements brute partitionnée par mois si le volume le justifie (ADR à prévoir), agrégats quotidiens via `pg_cron`.
+
+
