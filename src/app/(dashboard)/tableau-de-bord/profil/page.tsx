@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { createContainer } from "@/server/container";
-import { toEditorFields, toEditorLinks } from "@/ui/features/profile-editor/editor-state";
+import { toEditorFields, toEditorImages, toEditorLinks } from "@/ui/features/profile-editor/editor-state";
 import { ProfileEditor } from "@/ui/features/profile-editor/profile-editor";
 
 export const metadata: Metadata = { title: "Modifier mon profil" };
@@ -39,7 +39,12 @@ export default async function ProfileEditorPage() {
           </Link>
         </p>
       </header>
-      <ProfileEditor slug={profile.slug} initialFields={toEditorFields(profile)} initialLinks={toEditorLinks(links)} />
+      <ProfileEditor
+        slug={profile.slug}
+        initialFields={toEditorFields(profile)}
+        initialLinks={toEditorLinks(links)}
+        initialImages={toEditorImages(profile)}
+      />
     </main>
   );
 }

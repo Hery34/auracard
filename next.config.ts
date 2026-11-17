@@ -11,6 +11,8 @@ const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   images: { unoptimized: true },
+  // 2 MiB image (bucket carnet-media) + form overhead (0021).
+  experimental: { serverActions: { bodySizeLimit: "3mb" } },
   headers: async () => [{ source: "/(.*)", headers: securityHeaders }],
 };
 

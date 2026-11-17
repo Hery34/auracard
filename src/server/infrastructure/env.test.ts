@@ -113,3 +113,27 @@ describe("env (loaded from process.env)", () => {
     );
   });
 });
+
+describe("NEXT_PUBLIC_SUPABASE_URL is a bare origin (0021, decision 12: the media origin of safeImageSrc)", () => {
+  it.each([
+    ["a path", "https://h.example/supabase"],
+    ["a path with a trailing slash", "https://h.example/supabase/"],
+    ["a query", "https://h.example/?x=1"],
+    ["a fragment", "https://h.example/#x"],
+    ["credentials", "https://user:pw@h.example"],
+  ])("with %s (%s) → refused, naming the variable", async (_label, value) => {
+    const { parseEnv } = await loadEnvModule();
+
+    expect(() => parseEnv(rawEnv({ NEXT_PUBLIC_SUPABASE_URL: value }))).toThrow(/NEXT_PUBLIC_SUPABASE_URL/);
+  });
+
+  it.each([
+    ["the local stack", "http://127.0.0.1:54321"],
+    ["an https origin", "https://h.example"],
+    ["an https origin with a trailing slash", "https://h.example/"],
+  ])("%s (%s) → accepted", async (_label, value) => {
+    const { parseEnv } = await loadEnvModule();
+
+    expect(() => parseEnv(rawEnv({ NEXT_PUBLIC_SUPABASE_URL: value }))).not.toThrow();
+  });
+});

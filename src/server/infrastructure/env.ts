@@ -6,18 +6,18 @@ import { z } from "zod";
 const DEVELOPMENT_SITE_URL = "http://localhost:3000";
 
 /** Public origin (scheme, host, optional port), normalized without trailing slash. */
-const siteUrlSchema = z
+const originSchema = z
   .url({ protocol: /^https?$/ })
   .refine(isBareOrigin, "expected an origin without path, query, fragment or credentials")
   .transform((value) => new URL(value).origin);
 
 export const envSchema = z
   .object({
-    NEXT_PUBLIC_SUPABASE_URL: z.url(),
+    NEXT_PUBLIC_SUPABASE_URL: originSchema,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20),
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
     RATE_LIMIT_SECRET: z.string().regex(/^[0-9a-f]{64}$/, "expected 64 lowercase hex characters (openssl rand -hex 32)"),
-    SITE_URL: siteUrlSchema.optional(),
+    SITE_URL: originSchema.optional(),
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   })
   .superRefine((raw, context) => {

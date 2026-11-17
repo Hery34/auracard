@@ -1,7 +1,9 @@
+import { publicMediaUrl } from "@/domain/profile/profile-image";
 import type { Result } from "@/domain/shared/result";
 import type { AuthGateway } from "@/domain/shared/ports/auth-gateway";
 import { env } from "@/server/infrastructure/env";
 import { cryptoIdGenerator } from "@/server/infrastructure/id-generator";
+import { makeMediaFetcher, MEDIA_FETCH_MAX_BYTES, MEDIA_FETCH_TIMEOUT_MS } from "@/server/adapters/media-fetcher";
 import { requestClientAddress } from "@/server/infrastructure/request-client-address";
 import { createAdminClient } from "@/server/infrastructure/supabase/admin";
 import { makeSupabaseAuthGateway } from "@/server/infrastructure/supabase/auth-gateway";
@@ -9,7 +11,9 @@ import { createPublicSupabaseClient } from "@/server/infrastructure/supabase/pub
 import { createServerSupabaseClient } from "@/server/infrastructure/supabase/server";
 import { makeCachedPublicProfileReader } from "@/server/repositories/cached-public-profile-reader";
 import { makeSupabaseLinkRepository } from "@/server/repositories/supabase-link-repository";
+import { makeSupabaseMediaStorage } from "@/server/adapters/supabase-media-storage";
 import { makeSupabaseMembershipReader } from "@/server/repositories/supabase-membership-reader";
+import { makeSupabaseProfileImageWriter } from "@/server/repositories/supabase-profile-image-writer";
 import { makeSupabaseProfileReader } from "@/server/repositories/supabase-profile-reader";
 import { makeSupabaseProfileRegistrar } from "@/server/repositories/supabase-profile-registrar";
 import { makeSupabaseProfileWriter } from "@/server/repositories/supabase-profile-writer";
@@ -20,10 +24,12 @@ import { makeGetOwnProfile, type GetOwnProfile } from "@/server/use-cases/get-ow
 import { makeGetPublicProfile, type GetPublicProfile } from "@/server/use-cases/get-public-profile";
 import { makeGetVCard, type VCardFile } from "@/server/use-cases/get-vcard";
 import { makeRegisterUser, type RegisterUser } from "@/server/use-cases/register-user";
+import { makeRemoveProfileImage, type RemoveProfileImage } from "@/server/use-cases/remove-profile-image";
 import { makeReplaceLinks, type ReplaceLinks } from "@/server/use-cases/replace-links";
 import type { RateLimitError } from "@/server/use-cases/shared/enforce-rate-limits";
 import { makeSignIn, type SignIn } from "@/server/use-cases/sign-in";
 import { makeUpdateProfile, type UpdateProfile } from "@/server/use-cases/update-profile";
+import { makeUploadProfileImage, type UploadProfileImage } from "@/server/use-cases/upload-profile-image";
 
 export type Container = {
   registerUser: RegisterUser;
@@ -31,6 +37,8 @@ export type Container = {
   getOwnProfile: GetOwnProfile;
   updateProfile: UpdateProfile;
   replaceLinks: ReplaceLinks;
+  uploadProfileImage: UploadProfileImage;
+  removeProfileImage: RemoveProfileImage;
   auth: AuthGateway;
 };
 
@@ -50,9 +58,11 @@ export async function createContainer(): Promise<Container> {
   const auth = makeSupabaseAuthGateway(server);
   const registrar = makeSupabaseProfileRegistrar(admin);
   const rateLimiter = makeSupabaseRateLimiter(admin, env.RATE_LIMIT_SECRET);
-  const profiles = makeSupabaseProfileReader(server);
+  const profiles = makeSupabaseProfileReader(server, env.NEXT_PUBLIC_SUPABASE_URL);
   const links = makeSupabaseLinkRepository(server);
   const ids = cryptoIdGenerator;
+  const storage = makeSupabaseMediaStorage(server);
+  const images = makeSupabaseProfileImageWriter(server);
 
   return {
     auth,
@@ -61,15 +71,33 @@ export async function createContainer(): Promise<Container> {
     getOwnProfile: makeGetOwnProfile({ auth, profiles, links }),
     updateProfile: makeUpdateProfile({ auth, rateLimiter, profiles, writer: makeSupabaseProfileWriter(server) }),
     replaceLinks: makeReplaceLinks({ auth, rateLimiter, profiles, links }),
+    uploadProfileImage: makeUploadProfileImage({
+      auth,
+      rateLimiter,
+      profiles,
+      storage,
+      images,
+      ids,
+      mediaUrl: (objectName) => publicMediaUrl(env.NEXT_PUBLIC_SUPABASE_URL, objectName),
+    }),
+    removeProfileImage: makeRemoveProfileImage({ auth, rateLimiter, profiles, storage, images }),
   };
 }
 
 /** Composition root of the public reads: no cookies, usable in static rendering. */
 export function createPublicContainer(): PublicContainer {
-  const publicProfiles = makeCachedPublicProfileReader(makeSupabasePublicProfileReader(createPublicSupabaseClient()));
+  const publicProfiles = makeCachedPublicProfileReader(
+    makeSupabasePublicProfileReader(createPublicSupabaseClient(), env.NEXT_PUBLIC_SUPABASE_URL),
+  );
   const getVCard = makeGetVCard({
     publicProfiles,
     profileUrl: (slug) => `${env.SITE_URL}/p/${slug}`,
+    avatars: makeMediaFetcher({
+      supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL,
+      fetch: globalThis.fetch,
+      timeoutMs: MEDIA_FETCH_TIMEOUT_MS,
+      maxBytes: MEDIA_FETCH_MAX_BYTES,
+    }),
   });
   return {
     getPublicProfile: makeGetPublicProfile({ publicProfiles }),

@@ -18,7 +18,15 @@
  *     URL:<options.profileUrl>        always
  *     NOTE:<bio>                      omitted when null or ""
  *     END:VCARD
- * - no PHOTO before 0021, whatever `avatarUrl` holds; links and banner never appear.
+ * - no PHOTO from `avatarUrl` (never fetched by the serializer); links and banner never appear.
+ *
+ * 0021, decision 6 (contract frozen by test-engineer):
+ * export type VCardPhoto = { format: ImageFormat; bytes: Uint8Array };   // ImageFormat of profile-image.ts
+ * export function serializeVCard(profile: PublicProfile, options: { profileUrl: string; photo?: VCardPhoto | null }): string;
+ * - `photo` present → one line `PHOTO;ENCODING=b;TYPE=<IMAGE_FORMATS[format].vcardType>:<base64>` right before END:VCARD
+ *   (RFC 2426 §3.1.4); base64 = standard alphabet with `=` padding (RFC 4648 §4), no line break of its own; the line
+ *   is folded like any other (75 octets, then a space and 74 octets). Absent or null → no PHOTO line.
+ * - the serializer stays pure: it never reads an URL; the bytes are fetched by the use case (getVCard).
  * - text values (N, FN, ORG, TITLE, EMAIL, TEL, NOTE): control characters removed first (U+0000–U+001F except
  *   CR and LF, U+007F–U+009F: tab, vertical tab, form feed, NEL included), then `\` → `\\`, `,` → `\,`,
  *   `;` → `\;`, and each line break (`\r\n`, lone `\r`, lone `\n`) → the two characters `\n`.
@@ -31,6 +39,8 @@ import { describe, expect, it } from "vitest";
 
 import type { PublicProfile } from "@/domain/profile/profile";
 import { serializeVCard } from "@/domain/profile/vcard";
+
+import { imageBytes } from "../../../tests/builders/images";
 
 import { aPublicProfile } from "../../../tests/builders/fake-public-profile-reader";
 
@@ -383,6 +393,65 @@ describe("serializeVCard", () => {
         `NOTE:${escape(profile.bio ?? "")}`,
         "END:VCARD",
       ]);
+    });
+  });
+
+  describe("0021 decision 6: PHOTO of the avatar", () => {
+    function base64(bytes: Uint8Array): string {
+      return Buffer.from(bytes).toString("base64");
+    }
+
+    it.each([
+      ["jpeg", "JPEG"],
+      ["png", "PNG"],
+      ["webp", "WEBP"],
+    ] as const)("%s bytes → PHOTO;ENCODING=b;TYPE=%s:<base64>, right before END:VCARD", (format, type) => {
+      const bytes = imageBytes(format, 30);
+      const content = serializeVCard(aMinimalProfile("Jean Martin"), { profileUrl: PROFILE_URL, photo: { format, bytes } });
+
+      const unfolded = unfold(content);
+      expect(unfolded.at(-2)).toBe(`PHOTO;ENCODING=b;TYPE=${type}:${base64(bytes)}`);
+      expect(unfolded.at(-1)).toBe("END:VCARD");
+      expect(unfolded.filter((line) => line.startsWith("PHOTO"))).toHaveLength(1);
+    });
+
+    it("standard base64 with padding (RFC 4648 §4), '+' and '/' included", () => {
+      const bytes = Uint8Array.from([0xff, 0xd8, 0xff, 0xfb, 0xff, 0xbf, 0x3e]);
+      const content = serializeVCard(aMinimalProfile("Jean Martin"), {
+        profileUrl: PROFILE_URL,
+        photo: { format: "jpeg", bytes },
+      });
+
+      expect(unfold(content)).toContain("PHOTO;ENCODING=b;TYPE=JPEG:/9j/+/+/Pg==");
+    });
+
+    it("the long base64 line is folded: 75 octets, then a space and 74 octets per line, exact reconstitution", () => {
+      const bytes = imageBytes("png", 6000);
+      const property = `PHOTO;ENCODING=b;TYPE=PNG:${base64(bytes)}`;
+      const content = serializeVCard(aMinimalProfile("Jean Martin"), { profileUrl: PROFILE_URL, photo: { format: "png", bytes } });
+
+      expectFoldedWithin75Octets(content);
+      const physical = physicalLines(content);
+      const start = physical.findIndex((line) => line.startsWith("PHOTO"));
+      expect(physical[start]).toBe(property.slice(0, 75));
+      expect(physical[start + 1]).toBe(` ${property.slice(75, 149)}`);
+      expect(unfold(content)).toContain(property);
+    });
+
+    it("photo null or absent → no PHOTO line, even with an avatar URL", () => {
+      const profile = aCompleteProfile();
+
+      expect(serializeVCard(profile, { profileUrl: PROFILE_URL, photo: null })).toBe(vcard(profile));
+      expect(vcard(profile)).not.toMatch(/^PHOTO/m);
+    });
+
+    it("the other lines are unchanged by the photo", () => {
+      const profile = aCompleteProfile();
+      const withPhoto = unfold(
+        serializeVCard(profile, { profileUrl: PROFILE_URL, photo: { format: "jpeg", bytes: imageBytes("jpeg") } }),
+      );
+
+      expect(withPhoto.filter((line) => !line.startsWith("PHOTO"))).toStrictEqual(unfold(vcard(profile)));
     });
   });
 

@@ -1,5 +1,6 @@
 import type { Link, SavedLink } from "@/domain/profile/link";
 import type { ProfileUpdate, PublicProfile } from "@/domain/profile/profile";
+import type { IMAGE_FORMATS, ImageFormat, ProfileImageKind } from "@/domain/profile/profile-image";
 import type { Slug } from "@/domain/profile/slug";
 import type { Result } from "@/domain/shared/result";
 
@@ -17,7 +18,7 @@ export interface MembershipReader {
   isMember(): Promise<Result<boolean, "unexpected">>;
 }
 
-/** Every editable field as stored (`null` when empty), plus `id` and `slug`. */
+/** Every editable field as stored (`null` when empty), plus `id`, `slug` and the public URLs of the images. */
 export type OwnProfile = {
   id: string;
   slug: string;
@@ -30,6 +31,9 @@ export type OwnProfile = {
   websiteUrl: string | null;
   isPublished: boolean;
   isIndexable: boolean;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  logoUrl: string | null;
 };
 
 /** Profile of the account behind the current server session; `null` when that account has none. */
@@ -54,4 +58,26 @@ export interface LinkRepository {
 /** Published profile by slug, without session; not published or unknown → `null`. */
 export interface PublicProfileReader {
   getBySlug(slug: Slug): Promise<Result<PublicProfile | null, "unexpected">>;
+}
+
+export type MediaContentType = (typeof IMAGE_FORMATS)[ImageFormat]["contentType"];
+
+/** Bucket `carnet-media` under the session of the caller. */
+export interface MediaStorage {
+  /** Never overwrites an existing object. */
+  upload(input: { objectName: string; bytes: Uint8Array; contentType: MediaContentType }): Promise<Result<void, "unexpected">>;
+  /** An object already absent is a success. */
+  remove(objectName: string): Promise<Result<void, "unexpected">>;
+}
+
+export type ProfileImageWriteError = "not_found" | "unexpected";
+
+/** Image reference of the caller's own profile; returns the previous object name of that kind. */
+export interface ProfileImageWriter {
+  set(kind: ProfileImageKind, objectName: string | null): Promise<Result<{ previous: string | null }, ProfileImageWriteError>>;
+}
+
+/** Bytes of a public object of `carnet-media` on the configured origin only; `null` when refused or unavailable. Never throws. */
+export interface MediaFetcher {
+  fetch(url: string): Promise<Uint8Array | null>;
 }

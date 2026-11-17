@@ -1,10 +1,10 @@
-import Image from "next/image";
-
 const SIZE = 96;
 
-export function ProfileAvatar({ avatarUrl, initials, alt }: { avatarUrl: string | null; initials: string; alt: string }) {
+/** Decorative (0021, decision 12): the name follows as the page title. */
+export function ProfileAvatar({ avatarUrl, initials }: { avatarUrl: string | null; initials: string }) {
   if (avatarUrl !== null) {
-    return <Image src={avatarUrl} alt={alt} width={SIZE} height={SIZE} className="size-24 rounded-full object-cover" />;
+    // eslint-disable-next-line @next/next/no-img-element -- `images.unoptimized: true` (docs/rules/nextjs.md): files are resized in the browser before upload (0021)
+    return <img src={avatarUrl} alt="" width={SIZE} height={SIZE} className="size-24 rounded-full object-cover" />;
   }
   return (
     <div

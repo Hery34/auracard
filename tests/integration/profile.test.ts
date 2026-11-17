@@ -7,9 +7,9 @@
  * // src/server/repositories/supabase-link-repository.ts
  * export function makeSupabaseLinkRepository(server: CarnetClient): LinkRepository;         // rpc replace_links; listOwn: select under RLS, by position
  * // src/server/repositories/supabase-profile-reader.ts (decision 9)
- * export function makeSupabaseProfileReader(server: CarnetClient): ProfileReader;           // getOwn: full OwnProfile under RLS
+ * export function makeSupabaseProfileReader(server: CarnetClient, mediaOrigin: string): ProfileReader; // getOwn: full OwnProfile under RLS (0021: + image URLs)
  * // src/server/repositories/supabase-public-profile-reader.ts
- * export function makeSupabasePublicProfileReader(client: CarnetClient): PublicProfileReader; // rpc get_public_profile + get_public_links
+ * export function makeSupabasePublicProfileReader(client: CarnetClient, mediaOrigin: string): PublicProfileReader; // rpc get_public_profile + get_public_links
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -33,6 +33,9 @@ import { deleteUsersByEmail } from "./setup/cleanup";
 import { adminClient, anonClient, type CarnetClient } from "./setup/clients";
 import { RUN_SECRET, UUID_PATTERN } from "./setup/fixtures";
 import { createMember, createOutsider } from "./setup/members";
+
+/** 0021: origin of the public image URLs built by the readers (any value: no image in this file). */
+const MEDIA_ORIGIN = "http://127.0.0.1:54321";
 
 const PROFILE_COLUMNS =
   "slug, display_name, job_title, company, bio, contact_email, phone, website_url, is_published, is_indexable";
@@ -66,7 +69,7 @@ describe("profile writes and public read against the local Supabase stack", () =
     const deps = {
       auth: makeSupabaseAuthGateway(session),
       rateLimiter: makeSupabaseRateLimiter(admin, RUN_SECRET),
-      profiles: makeSupabaseProfileReader(session),
+      profiles: makeSupabaseProfileReader(session, MEDIA_ORIGIN),
     };
     return {
       updateProfile: makeUpdateProfile({ ...deps, writer: makeSupabaseProfileWriter(session) }),
@@ -78,14 +81,14 @@ describe("profile writes and public read against the local Supabase stack", () =
   function ownRead(session: CarnetClient) {
     return makeGetOwnProfile({
       auth: makeSupabaseAuthGateway(session),
-      profiles: makeSupabaseProfileReader(session),
+      profiles: makeSupabaseProfileReader(session, MEDIA_ORIGIN),
       links: makeSupabaseLinkRepository(session),
     });
   }
 
   /** Cookie-less anonymous client: what the static public page uses (decision 6). */
   function publicRead() {
-    return makeGetPublicProfile({ publicProfiles: makeSupabasePublicProfileReader(anonClient()) });
+    return makeGetPublicProfile({ publicProfiles: makeSupabasePublicProfileReader(anonClient(), MEDIA_ORIGIN) });
   }
 
   async function profileRow(profileId: string) {
@@ -342,6 +345,9 @@ describe("profile writes and public read against the local Supabase stack", () =
             websiteUrl: null,
             isPublished: false,
             isIndexable: false,
+            avatarUrl: null,
+            bannerUrl: null,
+            logoUrl: null,
           },
           links: [],
         }),
@@ -374,6 +380,9 @@ describe("profile writes and public read against the local Supabase stack", () =
             websiteUrl: update.websiteUrl,
             isPublished: true,
             isIndexable: true,
+            avatarUrl: null,
+            bannerUrl: null,
+            logoUrl: null,
           },
           links: rows,
         }),
@@ -460,6 +469,7 @@ describe("profile writes and public read against the local Supabase stack", () =
           bio: update.bio,
           avatarUrl: null,
           bannerUrl: null,
+          logoUrl: null,
           contactEmail: update.contactEmail,
           phone: update.phone,
           websiteUrl: update.websiteUrl,

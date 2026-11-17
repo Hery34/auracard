@@ -12,6 +12,13 @@ export type EditorFields = Record<TextFieldName, string> & { isPublished: boolea
 /** `key` identifies the row in React; `id` is the stored link's, `null` until the first save. */
 export type EditorLink = { key: string; id: string | null; platform: LinkPlatform; url: string; label: string };
 
+/** Public URLs of the stored images, as read by `getOwnProfile`, then as returned by the image actions. */
+export type EditorImages = { avatarUrl: string | null; bannerUrl: string | null; logoUrl: string | null };
+
+export function toEditorImages(profile: OwnProfile): EditorImages {
+  return { avatarUrl: profile.avatarUrl, bannerUrl: profile.bannerUrl, logoUrl: profile.logoUrl };
+}
+
 export function toEditorFields(profile: OwnProfile): EditorFields {
   return {
     displayName: profile.displayName,
@@ -32,16 +39,22 @@ export function toEditorLinks(links: readonly SavedLink[]): EditorLink[] {
     .map((link) => ({ key: link.id, id: link.id, platform: link.platform, url: link.url, label: link.label ?? "" }));
 }
 
-/** The unsaved form as the public page would show it: same trimming as the server, no avatar yet (0021). */
-export function toPreviewProfile(slug: string, fields: EditorFields, links: readonly EditorLink[]): PublicProfile {
+/** The unsaved form as the public page would show it: same trimming as the server; images already stored. */
+export function toPreviewProfile(
+  slug: string,
+  fields: EditorFields,
+  links: readonly EditorLink[],
+  images: EditorImages,
+): PublicProfile {
   return {
     slug,
     displayName: fields.displayName.trim(),
     jobTitle: blankToNull(fields.jobTitle),
     company: blankToNull(fields.company),
     bio: blankToNull(fields.bio),
-    avatarUrl: null,
-    bannerUrl: null,
+    avatarUrl: images.avatarUrl,
+    bannerUrl: images.bannerUrl,
+    logoUrl: images.logoUrl,
     contactEmail: blankToNull(fields.contactEmail),
     phone: blankToNull(fields.phone),
     websiteUrl: blankToNull(fields.websiteUrl),

@@ -1,15 +1,17 @@
 import { isLinkPlatform } from "@/domain/profile/link";
 import type { PublicProfileReader } from "@/domain/profile/ports";
 import type { PublicLink } from "@/domain/profile/profile";
+import { publicMediaUrl } from "@/domain/profile/profile-image";
 import { err, ok } from "@/domain/shared/result";
 import { logInfrastructureError } from "@/server/infrastructure/logger";
 import type { CarnetClient } from "@/server/infrastructure/supabase/carnet-client";
 
 /**
  * `carnet.get_public_profile` + `carnet.get_public_links` (security definer, published profiles only) through the
- * cookie-less anonymous client. `theme` is not part of the public profile.
+ * cookie-less anonymous client. `theme` is not part of the public profile. Images: stored object names → public URLs
+ * on `mediaOrigin`.
  */
-export function makeSupabasePublicProfileReader(client: CarnetClient): PublicProfileReader {
+export function makeSupabasePublicProfileReader(client: CarnetClient, mediaOrigin: string): PublicProfileReader {
   return {
     async getBySlug(slug) {
       const [profile, links] = await Promise.all([
@@ -42,8 +44,9 @@ export function makeSupabasePublicProfileReader(client: CarnetClient): PublicPro
         jobTitle: row.job_title,
         company: row.company,
         bio: row.bio,
-        avatarUrl: row.avatar_url,
-        bannerUrl: row.banner_url,
+        avatarUrl: publicMediaUrl(mediaOrigin, row.avatar_url),
+        bannerUrl: publicMediaUrl(mediaOrigin, row.banner_url),
+        logoUrl: publicMediaUrl(mediaOrigin, row.logo_url),
         contactEmail: row.contact_email,
         phone: row.phone,
         websiteUrl: row.website_url,

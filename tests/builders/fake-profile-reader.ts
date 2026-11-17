@@ -6,7 +6,8 @@ import { PROFILE_ID } from "./fake-registrar";
 
 /**
  * Shape fixed by the 0017 contract (decision 9, extends 0008): every editable field of `carnet.profiles` as stored,
- * plus `id` and `slug`. A type mismatch here means the port drifted.
+ * plus `id` and `slug`; 0021: the public URLs of the three images (built by the reader). A type mismatch here means
+ * the port drifted.
  */
 export type OwnProfile = {
   id: string;
@@ -20,11 +21,14 @@ export type OwnProfile = {
   websiteUrl: string | null;
   isPublished: boolean;
   isIndexable: boolean;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  logoUrl: string | null;
 };
 
 export type OwnProfileResult = Result<OwnProfile | null, "unexpected">;
 
-/** Defaults to the profile as `register_member` creates it: display name and slug only, unpublished. */
+/** Defaults to the profile as `register_member` creates it: display name and slug only, unpublished, no image. */
 export function anOwnProfile(overrides: Partial<OwnProfile> = {}): OwnProfile {
   return {
     id: PROFILE_ID,
@@ -38,6 +42,9 @@ export function anOwnProfile(overrides: Partial<OwnProfile> = {}): OwnProfile {
     websiteUrl: null,
     isPublished: false,
     isIndexable: false,
+    avatarUrl: null,
+    bannerUrl: null,
+    logoUrl: null,
     ...overrides,
   };
 }

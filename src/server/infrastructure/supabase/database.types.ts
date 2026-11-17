@@ -27,14 +27,14 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "avatar_url": string | null,"banner_url": string | null,"bio": string | null,"company": string | null,"contact_email": string | null,"created_at": string,"display_name": string,"id": string,"is_indexable": boolean,"is_published": boolean,"job_title": string | null,"owner_id": string,"phone": string | null,"slug": string,"theme": NonNullable<Json>,"updated_at": string,"website_url": string | null
+                    "avatar_url": string | null,"banner_url": string | null,"bio": string | null,"company": string | null,"contact_email": string | null,"created_at": string,"display_name": string,"id": string,"is_indexable": boolean,"is_published": boolean,"job_title": string | null,"logo_url": string | null,"owner_id": string,"phone": string | null,"slug": string,"theme": NonNullable<Json>,"updated_at": string,"website_url": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "avatar_url"?: string | null,"banner_url"?: string | null,"bio"?: string | null,"company"?: string | null,"contact_email"?: string | null,"created_at"?: string,"display_name": string,"id"?: string,"is_indexable"?: boolean,"is_published"?: boolean,"job_title"?: string | null,"owner_id": string,"phone"?: string | null,"slug": string,"theme"?: NonNullable<Json>,"updated_at"?: string,"website_url"?: string | null
+                    "avatar_url"?: string | null,"banner_url"?: string | null,"bio"?: string | null,"company"?: string | null,"contact_email"?: string | null,"created_at"?: string,"display_name": string,"id"?: string,"is_indexable"?: boolean,"is_published"?: boolean,"job_title"?: string | null,"logo_url"?: string | null,"owner_id": string,"phone"?: string | null,"slug": string,"theme"?: NonNullable<Json>,"updated_at"?: string,"website_url"?: string | null
                   }
                   Update: {
-                    "avatar_url"?: string | null,"banner_url"?: string | null,"bio"?: string | null,"company"?: string | null,"contact_email"?: string | null,"created_at"?: string,"display_name"?: string,"id"?: string,"is_indexable"?: boolean,"is_published"?: boolean,"job_title"?: string | null,"owner_id"?: string,"phone"?: string | null,"slug"?: string,"theme"?: NonNullable<Json>,"updated_at"?: string,"website_url"?: string | null
+                    "avatar_url"?: string | null,"banner_url"?: string | null,"bio"?: string | null,"company"?: string | null,"contact_email"?: string | null,"created_at"?: string,"display_name"?: string,"id"?: string,"is_indexable"?: boolean,"is_published"?: boolean,"job_title"?: string | null,"logo_url"?: string | null,"owner_id"?: string,"phone"?: string | null,"slug"?: string,"theme"?: NonNullable<Json>,"updated_at"?: string,"website_url"?: string | null
                   }
                   Relationships: [
                     
@@ -58,14 +58,14 @@ isOneToOne: false
           Views: {
             "public_profiles": {
                   Row: {
-                    "avatar_url": string | null,"banner_url": string | null,"bio": string | null,"company": string | null,"contact_email": string | null,"display_name": string | null,"is_indexable": boolean | null,"job_title": string | null,"phone": string | null,"slug": string | null,"theme": Json | null,"website_url": string | null
+                    "avatar_url": string | null,"banner_url": string | null,"bio": string | null,"company": string | null,"contact_email": string | null,"display_name": string | null,"is_indexable": boolean | null,"job_title": string | null,"logo_url": string | null,"phone": string | null,"slug": string | null,"theme": Json | null,"website_url": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                           "avatar_url"?: string | null,"banner_url"?: string | null,"bio"?: string | null,"company"?: string | null,"contact_email"?: string | null,"display_name"?: string | null,"is_indexable"?: boolean | null,"job_title"?: string | null,"phone"?: string | null,"slug"?: string | null,"theme"?: Json | null,"website_url"?: string | null
+                           "avatar_url"?: string | null,"banner_url"?: string | null,"bio"?: string | null,"company"?: string | null,"contact_email"?: string | null,"display_name"?: string | null,"is_indexable"?: boolean | null,"job_title"?: string | null,"logo_url"?: string | null,"phone"?: string | null,"slug"?: string | null,"theme"?: Json | null,"website_url"?: string | null
                          }
                         Update: {
-                           "avatar_url"?: string | null,"banner_url"?: string | null,"bio"?: string | null,"company"?: string | null,"contact_email"?: string | null,"display_name"?: string | null,"is_indexable"?: boolean | null,"job_title"?: string | null,"phone"?: string | null,"slug"?: string | null,"theme"?: Json | null,"website_url"?: string | null
+                           "avatar_url"?: string | null,"banner_url"?: string | null,"bio"?: string | null,"company"?: string | null,"contact_email"?: string | null,"display_name"?: string | null,"is_indexable"?: boolean | null,"job_title"?: string | null,"logo_url"?: string | null,"phone"?: string | null,"slug"?: string | null,"theme"?: Json | null,"website_url"?: string | null
                          }
                         Relationships: [
                     
@@ -100,6 +100,7 @@ isOneToOne: false
 "display_name": string | null,
 "is_indexable": boolean | null,
 "job_title": string | null,
+"logo_url": string | null,
 "phone": string | null,
 "slug": string | null,
 "theme": Json | null,
@@ -113,6 +114,12 @@ isOneToOne: false
       } },
 "is_member":
 { Args: Record<PropertyKey, never>; Returns: boolean
+                           },
+"is_valid_media_name":
+{ Args: { "p_name": string }; Returns: boolean
+                           },
+"media_profile_id":
+{ Args: { "p_object_name": string }; Returns: string
                            },
 "purge_rate_limits":
 { Args: { "p_older_than": string }; Returns: number
@@ -136,7 +143,10 @@ isOneToOne: false
         to: "links"
         isOneToOne: false
         isSetofReturn: true
-      } }
+      } },
+"set_profile_image":
+{ Args: { "p_kind": string,"p_object_name": string }; Returns: string
+                           }
           }
           Enums: {
             [_ in never]: never

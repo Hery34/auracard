@@ -4,6 +4,7 @@ import { initialsOf } from "@/ui/features/profile/initials";
 import { GENERIC_PLATFORMS, PLATFORM_NAMES } from "@/ui/features/profile/platform-names";
 import { safeEmail } from "@/ui/features/profile/safe-email";
 import { safeHttpsHref, type SafeHref } from "@/ui/features/profile/safe-href";
+import { safeImageSrc } from "@/ui/features/profile/safe-image-src";
 import { scramble, type ScrambledText } from "@/ui/features/profile/scrambled-text";
 
 /** Revealed on click only: `href` and `text` never reach the HTML in clear; `text: null` keeps the control's label. */
@@ -19,6 +20,8 @@ export type ProfileCardView = {
   displayName: string;
   initials: string;
   avatarUrl: string | null;
+  bannerUrl: string | null;
+  logoUrl: string | null;
   jobTitle: string | null;
   company: string | null;
   bio: string | null;
@@ -34,12 +37,15 @@ export const PROTECTED_PLATFORMS: ReadonlySet<LinkPlatform> = new Set(["whatsapp
 
 const PHONE_SEPARATORS = /[\s.()-]/g;
 
-export function toProfileCardView(profile: PublicProfile): ProfileCardView {
+/** `mediaOrigin`: the configured Supabase origin, the only one images are displayed from (0021, decision 12). */
+export function toProfileCardView(profile: PublicProfile, mediaOrigin: string): ProfileCardView {
   const email = safeEmail(profile.contactEmail);
   return {
     displayName: profile.displayName,
     initials: initialsOf(profile.displayName),
-    avatarUrl: safeHttpsHref(profile.avatarUrl)?.href ?? null,
+    avatarUrl: safeImageSrc(profile.avatarUrl, mediaOrigin),
+    bannerUrl: safeImageSrc(profile.bannerUrl, mediaOrigin),
+    logoUrl: safeImageSrc(profile.logoUrl, mediaOrigin),
     jobTitle: profile.jobTitle,
     company: profile.company,
     bio: profile.bio,
