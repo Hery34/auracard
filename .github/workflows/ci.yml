@@ -49,6 +49,8 @@ jobs:
     env:
       # Job level: `src/server/infrastructure/env.ts` is validated when its modules load, `pnpm build` included.
       RATE_LIMIT_SECRET: "0000000000000000000000000000000000000000000000000000000000000000"
+      # Same origin as E2E_BASE_URL (Caddy); `https://` is required in production, `pnpm build` and `pnpm start` included.
+      SITE_URL: "https://localhost:3443"
       # HTTPS in front of `pnpm start` (`.github/e2e.Caddyfile`): the `Secure` session cookies survive in WebKit.
       CADDY_VERSION: "2.11.9"
       # SHA-512 of caddy_2.11.9_linux_amd64.tar.gz, from the official caddy_2.11.9_checksums.txt of the GitHub release.

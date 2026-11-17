@@ -19,6 +19,9 @@
  * // The use cases return ok({ profileId, slug }) / ok({ profileId, slug, links }).
  *
  * // src/server/container.ts — Container gains `updateProfile: UpdateProfile` and `replaceLinks: ReplaceLinks`.
+ *
+ * // 0019, decision 7: the tag is built by `profileCacheTag(slug)` from `src/server/cache-tags.ts`, the same function
+ * // as the cached public reader (never a template literal of its own).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -35,7 +38,14 @@ const mocks = vi.hoisted(() => ({
   replaceLinks: vi.fn(),
   updateTag: vi.fn(),
   revalidateTag: vi.fn(),
+  profileCacheTag: vi.fn(),
 }));
+
+vi.mock("@/server/cache-tags", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/cache-tags")>();
+  mocks.profileCacheTag.mockImplementation(actual.profileCacheTag);
+  return { profileCacheTag: mocks.profileCacheTag };
+});
 
 vi.mock("@/server/container", () => ({ createContainer: mocks.createContainer }));
 
@@ -138,6 +148,13 @@ describe("updateProfileAction", () => {
 
     expect(mocks.updateProfile).toHaveBeenCalledTimes(1);
     expect(mocks.updateProfile).toHaveBeenCalledWith(expectedUpdate);
+  });
+
+  it("0019 decision 7: the tag comes from profileCacheTag(slug) of src/server/cache-tags, the cached reader's one", async () => {
+    await actions.updateProfileAction(idleProfile, form(validProfileForm));
+
+    expect(mocks.profileCacheTag).toHaveBeenCalledWith(SLUG);
+    expect(updatedTags()).toStrictEqual([mocks.profileCacheTag.mock.results[0]?.value]);
   });
 
   it("decision 1: a slug sent with the form is never passed on (the slug cannot be changed)", async () => {
@@ -261,6 +278,13 @@ describe("replaceLinksAction", () => {
     await actions.replaceLinksAction(idleLinks, linksForm(validLinks));
 
     expect(updatedTags()).toStrictEqual(["profile:atelier-merel"]);
+  });
+
+  it("0019 decision 7: the tag comes from profileCacheTag(slug) of src/server/cache-tags, the cached reader's one", async () => {
+    await actions.replaceLinksAction(idleLinks, linksForm(validLinks));
+
+    expect(mocks.profileCacheTag).toHaveBeenCalledWith(SLUG);
+    expect(updatedTags()).toStrictEqual([mocks.profileCacheTag.mock.results[0]?.value]);
   });
 
   it("an empty list is valid (every link removed)", async () => {

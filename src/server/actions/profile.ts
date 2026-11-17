@@ -5,6 +5,7 @@ import type { z } from "zod";
 
 import type { SavedLink } from "@/domain/profile/link";
 import { replaceLinksSchema, updateProfileSchema } from "@/server/actions/profile-schemas";
+import { profileCacheTag } from "@/server/cache-tags";
 import { createContainer } from "@/server/container";
 import type { ReplaceLinksError } from "@/server/use-cases/replace-links";
 import type { UpdateProfileError } from "@/server/use-cases/update-profile";
@@ -64,7 +65,7 @@ export async function replaceLinksAction(_previous: ReplaceLinksState, formData:
 
 /** Public page, vCard and "not found" page share the tag `profile:<slug>` (`docs/rules/nextjs.md`); read-your-own-writes. */
 function invalidateProfile(slug: string): void {
-  updateTag(`profile:${slug}`);
+  updateTag(profileCacheTag(slug));
 }
 
 function textFields(formData: FormData, names: readonly string[]): Record<string, string | undefined> {

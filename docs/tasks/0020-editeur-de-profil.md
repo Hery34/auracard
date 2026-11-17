@@ -19,12 +19,13 @@ Depuis le tableau de bord, le propriétaire modifie ses informations et ses lien
 3. **Liens** : liste éditable (plateforme, URL, libellé facultatif), ajout, suppression, déplacement par boutons « monter / descendre » (accessibles au clavier, pas de glisser-déposer en phase 2), 12 au plus ; enregistrement de la liste entière par `replaceLinksAction`.
 4. **Aperçu en direct** : la carte de profil de 0018 (`src/ui/features/profile`) rendue côté client à partir de l'état du formulaire, dans un cadre de largeur mobile ; sur petit écran, bascule « Modifier / Aperçu ».
 6. Lien `whatsapp` ou téléphone : mention « ce numéro sera visible publiquement sur votre profil » (audit 0016). Les liens existants gardent leur `id` à l'enregistrement (0016, décision 8).
+7. *Report de la revue 0018* : l'aperçu rend `ProfileCard` côté client → typer `vcardHref` brouillé dans le modèle de vue (`ScrambledText`, comme le téléphone et l'e-mail), pour que `/v/{slug}` ne passe jamais en clair dans les données RSC.
 5. Le slug est affiché (lien vers la page publique), non modifiable.
 
 ## Critères d'acceptation
 1. Modifier un champ met à jour l'aperçu sans enregistrement ; enregistrer puis recharger conserve la valeur ; la page publique la montre (0018).
 2. Liens : ajout, réordonnancement, suppression enregistrés ; 13e lien impossible ; URL non `https://` refusée avec un message par champ.
-3. Publier / dépublier : la page publique passe de 404 à 200 et inversement.
+3. Publier / dépublier : la page publique passe de 404 à 200 et inversement, **y compris quand le 404 était déjà en cache** (critère 5 de 0018, reporté ici) ; une modification enregistrée apparaît sur `/p/{slug}` et dans `/v/{slug}`.
 4. Sans session → redirection `/connexion` (page et action).
 5. Accessibilité : labels, erreurs annoncées, ≥ 44 px, contrastes AA, ordre de tabulation logique.
 6. `pnpm check`, `pnpm build`, E2E verts iOS et Android.

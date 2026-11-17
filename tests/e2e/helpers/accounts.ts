@@ -17,9 +17,14 @@ const RUN_ID = `${Date.now()}-${process.pid}`;
  * under `pnpm start`): unique per worker, so the per-address signup/login counters of a run never meet
  * those of a previous run or of the other project. Documentation prefix 2001:db8::/32, aggregated to /64.
  */
-const WORKER_ADDRESS = `2001:db8:${randomBytes(2).toString("hex")}:${randomBytes(2).toString("hex")}::1`;
+const WORKER_ADDRESS = newClientAddress();
 
 let counter = 0;
+
+/** Fresh address in its own /64 (the aggregation unit of the per-address limits): a bucket no one has used. */
+export function newClientAddress(): string {
+  return `2001:db8:${randomBytes(2).toString("hex")}:${randomBytes(2).toString("hex")}::1`;
+}
 
 export function workerAddress(): string {
   return WORKER_ADDRESS;
