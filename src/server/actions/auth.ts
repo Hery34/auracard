@@ -1,12 +1,13 @@
 "use server";
 
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { z } from "zod";
 
 import { isActivationPath } from "@/domain/nfc/activation-path";
 import { registerSchema, signInSchema } from "@/server/actions/auth-schemas";
 import { textFields } from "@/server/actions/form-fields";
+import { deleteSessionCookies } from "@/server/actions/session-cookies";
 import { createContainer } from "@/server/container";
 import { requestClientAddress } from "@/server/infrastructure/request-client-address";
 import type { RegisterUserError } from "@/server/use-cases/register-user";
@@ -23,9 +24,6 @@ export type ActionState =
 
 const DASHBOARD_PATH = "/tableau-de-bord";
 const SIGN_IN_PATH = "/connexion";
-
-/** Prefix of the Supabase session cookies, chunks (`.0`, `.1`…) included. */
-const SESSION_COOKIE_PREFIX = "sb-";
 
 /** Public action: no session is required. */
 export async function registerAction(_previous: ActionState, formData: FormData): Promise<ActionState> {
@@ -69,15 +67,6 @@ export async function signOutAction(): Promise<void> {
     await deleteSessionCookies();
   }
   redirect(SIGN_IN_PATH, "replace");
-}
-
-async function deleteSessionCookies(): Promise<void> {
-  const store = await cookies();
-  for (const { name } of store.getAll()) {
-    if (name.startsWith(SESSION_COOKIE_PREFIX)) {
-      store.delete(name);
-    }
-  }
 }
 
 function invalidInput(error: z.ZodError): ActionState {

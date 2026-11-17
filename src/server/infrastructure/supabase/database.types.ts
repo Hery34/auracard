@@ -128,6 +128,9 @@ isOneToOne: true
 "consume_rate_limit":
 { Args: { "p_key": string,"p_limit": number,"p_window": string }; Returns: boolean
                            },
+"delete_own_account":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
 "ensure_qr_code":
 { Args: Record<PropertyKey, never>; Returns: {
               "code": string,
@@ -172,6 +175,9 @@ isOneToOne: true
       } },
 "is_member":
 { Args: Record<PropertyKey, never>; Returns: boolean
+                           },
+"is_orphan_account":
+{ Args: { "p_user_id": string }; Returns: boolean
                            },
 "is_valid_media_name":
 { Args: { "p_name": string }; Returns: boolean
