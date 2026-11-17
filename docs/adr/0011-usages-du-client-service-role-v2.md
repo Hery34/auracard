@@ -18,6 +18,8 @@ Reprend l'ADR 0010 intégralement (points 2 à 5 inchangés) et étend la liste 
 - Mêmes que l'ADR 0010 ; `admin.ts` est importé par deux adaptateurs au plus (`supabase-profile-registrar.ts`, `supabase-rate-limiter.ts`), ce que la règle ESLint `no-restricted-imports` vérifie.
 - La clé `service_role` est unique pour toute l'instance (un seul `JWT_SECRET`) : sa rotation est une opération d'instance qui touche tous les projets et n8n. Risque hérité de l'ADR 0002, consigné ici.
 - Un rejeu d'action consomme deux unités de quota : voulu (on compte les tentatives), exception à `idempotence.md` documentée.
+- *Précision validée par Hery (17/11/2026, fiche 0024)* : `consume_rate_limit` peut aussi être appelée **depuis une fonction `security definer` de `carnet`** (propriétaire `postgres`, aucun grant supplémentaire). Cas unique : `activate_nfc_tag`, clé `nfc-activate:<uuid du compte>` en clair (identifiant déjà en base, aucune adresse IP), pour que la limite d'essais ne soit pas contournable par PostgREST. La règle « clé = empreinte salée » reste obligatoire pour toute clé dérivée d'une adresse.
+- *Création des puces NFC (fiche 0025, Hery, 17/11/2026)* : `carnet.provision_nfc_tags` est lancée par Hery avec `psql` en tant que `postgres` (script SQL versionné), **sans** client `service_role` : ce n'est pas un nouvel usage au sens du point 1.
 
 ## Alternatives écartées
 - Compteur en mémoire dans le proxy : perdu au redémarrage, non testable en base, le proxy ne protège rien (`nextjs.md`).
