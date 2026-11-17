@@ -18,6 +18,10 @@ export const envSchema = z
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
     RATE_LIMIT_SECRET: z.string().regex(/^[0-9a-f]{64}$/, "expected 64 lowercase hex characters (openssl rand -hex 32)"),
     SITE_URL: originSchema.optional(),
+    QR_PRINT_READY: z
+      .string()
+      .optional()
+      .transform((value) => value === "true"),
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   })
   .superRefine((raw, context) => {

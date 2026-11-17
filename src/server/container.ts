@@ -20,11 +20,13 @@ import { makeSupabaseProfileReader } from "@/server/repositories/supabase-profil
 import { makeSupabaseProfileRegistrar } from "@/server/repositories/supabase-profile-registrar";
 import { makeSupabaseProfileWriter } from "@/server/repositories/supabase-profile-writer";
 import { makeSupabasePublicProfileReader } from "@/server/repositories/supabase-public-profile-reader";
+import { makeSupabaseQrCodeRepository } from "@/server/repositories/supabase-qr-code-repository";
 import { makeSupabaseQrCodeResolver } from "@/server/repositories/supabase-qr-code-resolver";
 import { makeSupabaseRateLimiter } from "@/server/repositories/supabase-rate-limiter";
 import { makeActivateNfcTag, type ActivateNfcTag } from "@/server/use-cases/activate-nfc-tag";
 import { makeDownloadVCard } from "@/server/use-cases/download-vcard";
 import { makeGetOwnProfile, type GetOwnProfile } from "@/server/use-cases/get-own-profile";
+import { makeGetOwnQrCode, type GetOwnQrCode } from "@/server/use-cases/get-own-qr-code";
 import { makeGetPublicProfile, type GetPublicProfile } from "@/server/use-cases/get-public-profile";
 import { makeGetVCard, type VCardFile } from "@/server/use-cases/get-vcard";
 import { makeListOwnNfcTags, type ListOwnNfcTags } from "@/server/use-cases/list-own-nfc-tags";
@@ -34,6 +36,7 @@ import { makeRemoveProfileImage, type RemoveProfileImage } from "@/server/use-ca
 import { makeReplaceLinks, type ReplaceLinks } from "@/server/use-cases/replace-links";
 import { makeResolveNfcTag, type ResolveNfcTag } from "@/server/use-cases/resolve-nfc-tag";
 import { makeResolveQrCode, type ResolveQrCode } from "@/server/use-cases/resolve-qr-code";
+import { makeSaveQrStyle, type SaveQrStyle } from "@/server/use-cases/save-qr-style";
 import type { RateLimitError } from "@/server/use-cases/shared/enforce-rate-limits";
 import { makeSetNfcTagEnabled, type SetNfcTagEnabled } from "@/server/use-cases/set-nfc-tag-enabled";
 import { makeSignIn, type SignIn } from "@/server/use-cases/sign-in";
@@ -52,6 +55,9 @@ export type Container = {
   listOwnNfcTags: ListOwnNfcTags;
   setNfcTagEnabled: SetNfcTagEnabled;
   releaseNfcTag: ReleaseNfcTag;
+  getOwnQrCode: GetOwnQrCode;
+  saveQrStyle: SaveQrStyle;
+  qrPrintReady: boolean;
   auth: AuthGateway;
 };
 
@@ -80,6 +86,7 @@ export async function createContainer(): Promise<Container> {
   const images = makeSupabaseProfileImageWriter(server);
   const membership = makeSupabaseMembershipReader(server);
   const tags = makeSupabaseNfcTagRepository(server);
+  const qrCodes = makeSupabaseQrCodeRepository(server);
 
   return {
     auth,
@@ -102,6 +109,9 @@ export async function createContainer(): Promise<Container> {
     listOwnNfcTags: makeListOwnNfcTags({ auth, tags }),
     setNfcTagEnabled: makeSetNfcTagEnabled({ auth, rateLimiter, profiles, tags }),
     releaseNfcTag: makeReleaseNfcTag({ auth, rateLimiter, profiles, tags }),
+    getOwnQrCode: makeGetOwnQrCode({ auth, profiles, qrCodes, siteUrl: env.SITE_URL }),
+    saveQrStyle: makeSaveQrStyle({ auth, rateLimiter, profiles, qrCodes }),
+    qrPrintReady: env.QR_PRINT_READY,
   };
 }
 
