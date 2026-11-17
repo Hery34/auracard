@@ -42,6 +42,12 @@ function e2eBaseUrl(): string | undefined {
 
 const baseURL = e2eBaseUrl();
 
+/**
+ * `pnpm start` runs in production, where `env.ts` requires an `https://` SITE_URL (a `.env*` value meant for
+ * `next dev` would be refused). It only ends up in the vCard URL, whose path the E2E check.
+ */
+const siteUrl = process.env.SITE_URL ?? (baseURL ? new URL(baseURL).origin : "https://localhost:3000");
+
 export default defineConfig({
   testDir: "tests/e2e",
   forbidOnly: !!process.env.CI,
@@ -56,6 +62,6 @@ export default defineConfig({
     command: "pnpm start",
     ...(baseURL ? { url: baseURL, ignoreHTTPSErrors: true } : { port: 3000 }),
     reuseExistingServer: !process.env.CI,
-    env: webServerEnv(),
+    env: { ...webServerEnv(), SITE_URL: siteUrl },
   },
 });

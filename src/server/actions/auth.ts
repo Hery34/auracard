@@ -6,9 +6,7 @@ import type { z } from "zod";
 
 import { registerSchema, signInSchema } from "@/server/actions/auth-schemas";
 import { createContainer } from "@/server/container";
-import { clientAddressFrom } from "@/server/infrastructure/client-address";
-import { env } from "@/server/infrastructure/env";
-import { logWarning } from "@/server/infrastructure/logger";
+import { requestClientAddress } from "@/server/infrastructure/request-client-address";
 import type { RegisterUserError } from "@/server/use-cases/register-user";
 import type { SignInUseCaseError } from "@/server/use-cases/sign-in";
 
@@ -20,12 +18,6 @@ export type ActionState =
       fields?: Record<string, string>;
     }
   | { status: "check_email" };
-
-/** Traefik (EasyPanel) is the only proxy in front of Next.js: it sets the last `x-forwarded-for` element. */
-const TRUSTED_PROXY_HOPS = 1;
-
-/** Fixed bucket returned by `clientAddressFrom` in production when the header is absent or invalid. */
-const UNKNOWN_ADDRESS = "unknown";
 
 const DASHBOARD_PATH = "/tableau-de-bord";
 const SIGN_IN_PATH = "/connexion";
@@ -100,12 +92,5 @@ function invalidInput(error: z.ZodError): ActionState {
 }
 
 async function clientAddress(): Promise<string> {
-  const address = clientAddressFrom(await headers(), {
-    trustedProxyHops: TRUSTED_PROXY_HOPS,
-    production: env.NODE_ENV === "production",
-  });
-  if (address === UNKNOWN_ADDRESS) {
-    logWarning("client-address", "unknown_address");
-  }
-  return address;
+  return requestClientAddress(await headers());
 }

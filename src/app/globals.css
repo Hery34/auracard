@@ -18,6 +18,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-link: var(--link);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
 }
@@ -40,10 +41,34 @@
   --border: #6b6b73;
   --input: #6b6b73;
   --ring: #00c896;
+  --link: #00c896;
 }
 
 html {
   color-scheme: dark;
+}
+
+/* Public profile only (ADR 0013 §7): light theme when the visitor's device asks for it. Emerald stays the
+   background of buttons; text and links use a darker emerald (#00C896 on white is 2.1:1). */
+@media (prefers-color-scheme: light) {
+  html:has([data-theme="system"]) {
+    color-scheme: light;
+    --background: #fcfcfd;
+    --foreground: #0a0a0c;
+    --card: #ffffff;
+    --card-foreground: #0a0a0c;
+    --popover: #ffffff;
+    --popover-foreground: #0a0a0c;
+    --secondary: #f1f1f4;
+    --secondary-foreground: #0a0a0c;
+    --muted: #f1f1f4;
+    --muted-foreground: #52525b;
+    --destructive: #c62828;
+    --border: #8b8b94;
+    --input: #8b8b94;
+    --ring: #007a5c;
+    --link: #007a5c;
+  }
 }
 
 @layer base {
