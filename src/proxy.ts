@@ -5,10 +5,12 @@ import { env } from "@/server/infrastructure/env";
 import { SESSION_COOKIE_OPTIONS } from "@/server/infrastructure/supabase/cookie-options";
 
 const SIGN_IN_PATH = "/connexion";
+/** Public page that reads the session: refreshed here, never redirected (« Connectez-vous pour activer cette carte »). */
+const ACTIVATION_PATH = "/activer";
 
 /**
  * Comfort only, every page checks again: refreshes the session cookies and sends a visitor without a
- * session from the dashboard to the sign-in page (navigations only). Nothing is protected here (`docs/rules/nextjs.md`).
+ * session from the dashboard to the sign-in page (navigations only); `/activer` and `/activer/…` are refreshed only. Nothing is protected here (`docs/rules/nextjs.md`).
  * No reverse redirection: a signed-in account without a profile must still reach `/connexion`.
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
@@ -42,7 +44,9 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // A Server Action (always a POST with `Next-Action`) checks the session itself and answers `unauthenticated`;
   // a redirect would break its response. Any other request without a session, a GET included, is redirected.
   const isServerAction = request.method === "POST" && request.headers.has("next-action");
-  if (user === null && !isServerAction) {
+  const { pathname } = request.nextUrl;
+  const isActivationPage = pathname === ACTIVATION_PATH || pathname.startsWith(`${ACTIVATION_PATH}/`);
+  if (user === null && !isServerAction && !isActivationPage) {
     const signIn = request.nextUrl.clone();
     signIn.pathname = SIGN_IN_PATH;
     signIn.search = "";
@@ -57,5 +61,5 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  matcher: ["/tableau-de-bord/:path*"],
+  matcher: ["/activer/:path*", "/tableau-de-bord/:path*"],
 };

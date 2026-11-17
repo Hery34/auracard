@@ -15,9 +15,27 @@ const EXPECTED_ROUTES: ReadonlyArray<{ route: string; group: string }> = [
   { route: "/verifier-email", group: "(auth)" },
   { route: "/tableau-de-bord", group: "(dashboard)" },
   { route: "/tableau-de-bord/profil", group: "(dashboard)" },
+  { route: "/tableau-de-bord/puces", group: "(dashboard)" },
+  { route: "/activer/[uid]", group: "(public)" },
+];
+
+/** 0025, decision 3: route handlers (the phase 4 writes the scan event there), never pages. */
+const EXPECTED_HANDLERS: ReadonlyArray<{ route: string; group: string }> = [
+  { route: "/t/[uid]", group: "(public)" },
+  { route: "/q/[code]", group: "(public)" },
 ];
 
 type SegmentFile = { file: string; route: string };
+
+function handlerFiles(directory: string): SegmentFile[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      return handlerFiles(file);
+    }
+    return entry.name === "route.ts" ? [{ file, route: routeOf(file) }] : [];
+  });
+}
 
 function segmentFiles(directory: string): SegmentFile[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -56,5 +74,25 @@ describe("App Router segments", () => {
     const clientSegments = files.filter((entry) => startsWithUseClient(entry.file)).map((entry) => entry.file);
 
     expect(clientSegments).toStrictEqual([]);
+  });
+});
+
+describe("Route handlers (0025)", () => {
+  const handlers = handlerFiles(APP_DIR);
+  const pages = segmentFiles(APP_DIR);
+
+  it.each(EXPECTED_HANDLERS)("decision 3: a route handler serves $route inside the $group route group, and no page", ({ route, group }) => {
+    const matches = handlers.filter((entry) => entry.route === route);
+
+    expect(matches).toHaveLength(1);
+    expect(path.relative(APP_DIR, matches[0]?.file ?? "").split(path.sep)).toContain(group);
+    expect(pages.filter((entry) => entry.route === route)).toStrictEqual([]);
+  });
+
+  it.each(EXPECTED_HANDLERS)("decision 1: $route exports GET only", ({ route }) => {
+    const source = readFileSync(handlers.find((entry) => entry.route === route)?.file ?? "", "utf8");
+
+    expect(source).toMatch(/export\s+(async\s+)?function\s+GET\b/);
+    expect(source).not.toMatch(/export\s+(async\s+)?function\s+(POST|PUT|PATCH|DELETE)\b/);
   });
 });

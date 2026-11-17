@@ -46,6 +46,9 @@ export default async function DashboardPage() {
         >
           Voir ma page publique
         </Link>
+        <Link href="/tableau-de-bord/puces" className="inline-flex min-h-11 items-center font-medium text-link underline underline-offset-4">
+          Mes puces
+        </Link>
       </nav>
       <SignOutButton />
     </main>

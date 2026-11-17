@@ -4,6 +4,7 @@ import { updateTag } from "next/cache";
 import type { z } from "zod";
 
 import type { SavedLink } from "@/domain/profile/link";
+import { textFields } from "@/server/actions/form-fields";
 import { replaceLinksSchema, updateProfileSchema } from "@/server/actions/profile-schemas";
 import { profileCacheTag } from "@/server/cache-tags";
 import { createContainer } from "@/server/container";
@@ -66,15 +67,6 @@ export async function replaceLinksAction(_previous: ReplaceLinksState, formData:
 /** Public page, vCard and "not found" page share the tag `profile:<slug>` (`docs/rules/nextjs.md`); read-your-own-writes. */
 function invalidateProfile(slug: string): void {
   updateTag(profileCacheTag(slug));
-}
-
-function textFields(formData: FormData, names: readonly string[]): Record<string, string | undefined> {
-  return Object.fromEntries(
-    names.map((name) => {
-      const value = formData.get(name);
-      return [name, typeof value === "string" ? value : undefined];
-    }),
-  );
 }
 
 /** Unparsable or absent → `undefined`, refused by the schema. */

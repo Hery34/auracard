@@ -14,6 +14,10 @@
  * 0021 (decisions 5 and 6): the public reader receives the Supabase origin (`makeSupabasePublicProfileReader(client,
  * env.NEXT_PUBLIC_SUPABASE_URL)`); the vCard reads the avatar through `makeMediaFetcher({ supabaseUrl:
  * env.NEXT_PUBLIC_SUPABASE_URL, fetch: globalThis.fetch, timeoutMs: MEDIA_FETCH_TIMEOUT_MS, maxBytes: MEDIA_FETCH_MAX_BYTES })`.
+ *
+ * 0025 (decisions 1 to 4): PublicContainer gains `resolveNfcTag: ResolveNfcTag` and `resolveQrCode: ResolveQrCode`,
+ * built on `makeSupabaseNfcTagResolver(createPublicSupabaseClient())` and `makeSupabaseQrCodeResolver(<same>)`:
+ * cookie-less anonymous client, never the service_role client, no rate limiter, no cache (every scan is read live).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -23,6 +27,8 @@ import { ok } from "@/domain/shared/result";
 import { stubValidEnv, VALID_ENV } from "../../tests/builders/env";
 import { makeCallLog } from "../../tests/builders/call-log";
 import { fakeMediaFetcher } from "../../tests/builders/fake-media-fetcher";
+import { fakeNfcTagResolver, fakeQrCodeResolver } from "../../tests/builders/fake-nfc-tag-resolver";
+import { QR_CODE, TAG_UID } from "../../tests/builders/nfc";
 import { aPublicProfile, fakePublicProfileReader } from "../../tests/builders/fake-public-profile-reader";
 import { imageBytes } from "../../tests/builders/images";
 import { fakeRateLimiter } from "../../tests/builders/fake-rate-limiter";
@@ -50,6 +56,8 @@ const mocks = vi.hoisted(() => ({
   makeSupabaseRateLimiter: vi.fn(),
   makeCachedPublicProfileReader: vi.fn(),
   makeMediaFetcher: vi.fn(),
+  makeSupabaseNfcTagResolver: vi.fn(),
+  makeSupabaseQrCodeResolver: vi.fn(),
   headers: vi.fn(),
   nextHeadersLoaded: false,
 }));
@@ -98,6 +106,13 @@ vi.mock("@/server/repositories/cached-public-profile-reader", async (importOrigi
   return { makeCachedPublicProfileReader: mocks.makeCachedPublicProfileReader };
 });
 
+vi.mock("@/server/repositories/supabase-nfc-tag-resolver", () => ({
+  makeSupabaseNfcTagResolver: mocks.makeSupabaseNfcTagResolver,
+}));
+vi.mock("@/server/repositories/supabase-qr-code-resolver", () => ({
+  makeSupabaseQrCodeResolver: mocks.makeSupabaseQrCodeResolver,
+}));
+
 vi.mock("@/server/adapters/media-fetcher", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/server/adapters/media-fetcher")>();
   return { ...actual, makeMediaFetcher: mocks.makeMediaFetcher };
@@ -129,11 +144,20 @@ beforeEach(() => {
     .mockReset()
     .mockImplementation((): RateLimiter => fakeRateLimiter({ log }));
   mocks.makeMediaFetcher.mockReset().mockImplementation(() => fakeMediaFetcher({ log, bytes: imageBytes("jpeg") }));
+  mocks.makeSupabaseNfcTagResolver
+    .mockReset()
+    .mockImplementation(() => fakeNfcTagResolver({ log, results: [ok({ state: "active", slug: SLUG })] }));
+  mocks.makeSupabaseQrCodeResolver.mockReset().mockImplementation(() => fakeQrCodeResolver({ log, results: [ok(SLUG)] }));
 });
 
 describe("createPublicContainer — wiring", () => {
-  it("decision 7: exposes getPublicProfile and downloadVCard only (getVCard retired)", () => {
-    expect(Object.keys(createPublicContainer()).sort()).toStrictEqual(["downloadVCard", "getPublicProfile"]);
+  it("decision 7, 0025: exposes getPublicProfile, downloadVCard, resolveNfcTag and resolveQrCode only (getVCard retired)", () => {
+    expect(Object.keys(createPublicContainer()).sort()).toStrictEqual([
+      "downloadVCard",
+      "getPublicProfile",
+      "resolveNfcTag",
+      "resolveQrCode",
+    ]);
   });
 
   it("decision 7: the container never loads next/headers (the route hands the request headers)", async () => {
@@ -236,5 +260,45 @@ describe("createPublicContainer — wiring", () => {
     });
     expect(log.inputsOf("media", "fetch")).toStrictEqual([avatarUrl]);
     expect(vcard.ok && vcard.value?.content).toContain("PHOTO;ENCODING=b;TYPE=JPEG:");
+  });
+});
+
+describe("createPublicContainer — NFC and QR resolution (0025)", () => {
+  it("resolveNfcTag reads through the cookie-less anonymous client: no service_role, no limiter, no cache, no headers", async () => {
+    const result = await createPublicContainer().resolveNfcTag(TAG_UID);
+
+    expect(result).toStrictEqual(ok({ state: "active", slug: SLUG }));
+    expect(mocks.makeSupabaseNfcTagResolver).toHaveBeenCalledWith(mocks.publicClient);
+    expect(log.inputsOf("nfcTags", "resolve")).toStrictEqual([TAG_UID]);
+    expect(mocks.createAdminClient).not.toHaveBeenCalled();
+    expect(mocks.makeSupabaseRateLimiter).not.toHaveBeenCalled();
+    expect(mocks.createServerSupabaseClient).not.toHaveBeenCalled();
+    expect(mocks.cacheCalls).toStrictEqual([]);
+    expect(mocks.headers).not.toHaveBeenCalled();
+  });
+
+  it("resolveQrCode reads through the same cookie-less anonymous client: no service_role, no limiter, no cache", async () => {
+    const result = await createPublicContainer().resolveQrCode(QR_CODE);
+
+    expect(result).toStrictEqual(ok(SLUG));
+    expect(mocks.makeSupabaseQrCodeResolver).toHaveBeenCalledWith(mocks.publicClient);
+    expect(log.inputsOf("qrCodes", "resolve")).toStrictEqual([QR_CODE]);
+    expect(mocks.createAdminClient).not.toHaveBeenCalled();
+    expect(mocks.makeSupabaseRateLimiter).not.toHaveBeenCalled();
+    expect(mocks.cacheCalls).toStrictEqual([]);
+  });
+
+  it("each scan is read live: resolving the same uid twice reads the database twice", async () => {
+    const container = createPublicContainer();
+
+    await container.resolveNfcTag(TAG_UID);
+    await container.resolveNfcTag(TAG_UID);
+
+    expect(log.inputsOf("nfcTags", "resolve")).toStrictEqual([TAG_UID, TAG_UID]);
+  });
+
+  it("a malformed uid never reaches the resolver", async () => {
+    expect(await createPublicContainer().resolveNfcTag("../admin")).toStrictEqual(ok({ state: "not_found" }));
+    expect(log.inputsOf("nfcTags", "resolve")).toStrictEqual([]);
   });
 });
