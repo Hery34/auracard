@@ -12,6 +12,7 @@ import {
 } from "@/server/actions/auth-schemas";
 
 import { GATEWAY_USER_ID } from "../../../tests/builders/fake-auth-gateway";
+import { HOSTILE_RETURN_PATHS, TAG_UID } from "../../../tests/builders/nfc";
 import { PROFILE_ID } from "../../../tests/builders/fake-registrar";
 import { stubValidEnv } from "../../../tests/builders/env";
 
@@ -234,6 +235,82 @@ describe("signInAction", () => {
 
     expect(await actions.signInAction(idle, form(validSignIn))).toMatchObject({ status: "error", error });
     expect(mocks.redirect).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Contract frozen by test-engineer (0025, decision 7): `signInAction` reads the optional field `suivant` (hidden field
+ * of /connexion, filled from `?suivant=`) and, on success only, redirects to it when isActivationPath(suivant)
+ * (src/domain/nfc/activation-path.ts, exact match of ^/activer/[0-9a-hjkmnp-tv-z]{12}$); anything else →
+ * redirect("/tableau-de-bord"). `suivant` is never validated by the schema (a hostile value is not an input error)
+ * and never appears in a returned state.
+ */
+describe("signInAction — return path `suivant` (0025, decision 7)", () => {
+  const ACTIVATION_PATH = `/activer/${TAG_UID}`;
+
+  it("criterion 2: suivant = /activer/{uid} → redirect to that page after sign-in", async () => {
+    await expect(actions.signInAction(idle, form({ ...validSignIn, suivant: ACTIVATION_PATH }))).rejects.toThrow(
+      `NEXT_REDIRECT:${ACTIVATION_PATH}`,
+    );
+
+    expect(mocks.redirect).toHaveBeenCalledTimes(1);
+    expect(mocks.redirect).toHaveBeenCalledWith(ACTIVATION_PATH);
+  });
+
+  it("criterion 2: suivant = /activer/{uid} also after joining carnet (display name provided)", async () => {
+    mocks.signIn.mockResolvedValue(ok({ userId: GATEWAY_USER_ID, joined: true }));
+
+    await expect(
+      actions.signInAction(idle, form({ ...validSignIn, displayName: "Élodie", suivant: ACTIVATION_PATH })),
+    ).rejects.toThrow(`NEXT_REDIRECT:${ACTIVATION_PATH}`);
+  });
+
+  it.each(HOSTILE_RETURN_PATHS)("criterion 4: suivant = %s → redirect('/tableau-de-bord'), never elsewhere", async (_label, suivant) => {
+    await expect(actions.signInAction(idle, form({ ...validSignIn, suivant }))).rejects.toThrow("NEXT_REDIRECT:/tableau-de-bord");
+
+    expect(mocks.redirect).toHaveBeenCalledTimes(1);
+    expect(mocks.redirect).toHaveBeenCalledWith("/tableau-de-bord");
+  });
+
+  it("criterion 4: two `suivant` fields, the second one valid → only the first is read, refused → /tableau-de-bord", async () => {
+    const data = form(validSignIn);
+    data.append("suivant", "//evil.example");
+    data.append("suivant", ACTIVATION_PATH);
+
+    await expect(actions.signInAction(idle, data)).rejects.toThrow("NEXT_REDIRECT:/tableau-de-bord");
+    expect(mocks.redirect).toHaveBeenCalledWith("/tableau-de-bord");
+  });
+
+  it("criterion 4: a file as `suivant` → /tableau-de-bord", async () => {
+    const data = form(validSignIn);
+    data.set("suivant", new File([ACTIVATION_PATH], "suivant.txt"));
+
+    await expect(actions.signInAction(idle, data)).rejects.toThrow("NEXT_REDIRECT:/tableau-de-bord");
+  });
+
+  it("a hostile `suivant` is not an input error: the credentials are still checked", async () => {
+    await expect(actions.signInAction(idle, form({ ...validSignIn, suivant: "//evil.example" }))).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.signIn).toHaveBeenCalledTimes(1);
+    const [input] = mocks.signIn.mock.calls[0] as [Record<string, unknown>];
+    expect(input).toMatchObject({ email: validSignIn.email, password: validSignIn.password });
+    expect(JSON.stringify(input)).not.toContain("evil");
+  });
+
+  it("failed sign-in with a valid `suivant` → error state, no redirection, `suivant` not echoed", async () => {
+    mocks.signIn.mockResolvedValue(err("invalid_credentials"));
+
+    const state = await actions.signInAction(idle, form({ ...validSignIn, suivant: ACTIVATION_PATH }));
+
+    expect(state).toMatchObject({ status: "error", error: "invalid_credentials" });
+    expect(JSON.stringify(state)).not.toContain(TAG_UID);
+    expect(mocks.redirect).not.toHaveBeenCalled();
+  });
+
+  it("registerAction ignores `suivant` (after e-mail confirmation the visitor taps the card again)", async () => {
+    await expect(actions.registerAction(idle, form({ ...validRegister, suivant: ACTIVATION_PATH }))).rejects.toThrow(
+      "NEXT_REDIRECT:/tableau-de-bord",
+    );
   });
 });
 

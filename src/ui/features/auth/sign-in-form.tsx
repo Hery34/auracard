@@ -11,8 +11,11 @@ import { Field } from "@/ui/primitives/field";
 
 const INITIAL_STATE: ActionState = { status: "idle" };
 
-/** The display name is asked only when the account has to join AuraCard (`display_name_required`). */
-export function SignInForm() {
+/**
+ * The display name is asked only when the account has to join AuraCard (`display_name_required`).
+ * `returnPath` (an activation page) travels in the hidden field `suivant`.
+ */
+export function SignInForm({ returnPath }: { returnPath?: string | undefined }) {
   const [state, formAction, pending] = useActionState(signInAction, INITIAL_STATE);
   const fieldErrors = fieldErrorsOf(state, SIGN_IN_FIELD_MESSAGES);
   const asksDisplayName = fieldErrors.displayName !== undefined;
@@ -20,6 +23,7 @@ export function SignInForm() {
   return (
     <form action={formAction} noValidate className="flex flex-col gap-4">
       <ActionError state={state} />
+      {returnPath !== undefined && <input type="hidden" name="suivant" value={returnPath} />}
       <Field name="email" label="Adresse e-mail" type="email" autoComplete="email" required maxLength={EMAIL_MAX_LENGTH} error={fieldErrors.email} />
       <Field
         name="password"

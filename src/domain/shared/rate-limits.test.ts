@@ -23,10 +23,15 @@ describe("RATE_LIMITS", () => {
     expect(RATE_LIMITS.vcard).toStrictEqual({ limit: 30, windowSeconds: 3600 });
   });
 
-  it("defines exactly the five scopes signup, login, login-account, profile-write and vcard", () => {
+  it("nfc-activate: 30 activation attempts per address per hour (0025, decision 4)", () => {
+    expect(RATE_LIMITS["nfc-activate"]).toStrictEqual({ limit: 30, windowSeconds: 3600 });
+  });
+
+  it("defines exactly the six scopes signup, login, login-account, profile-write, vcard and nfc-activate", () => {
     expect(Object.keys(RATE_LIMITS).sort()).toStrictEqual([
       "login",
       "login-account",
+      "nfc-activate",
       "profile-write",
       "signup",
       "vcard",
