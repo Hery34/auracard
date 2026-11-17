@@ -106,6 +106,15 @@ describe("proxy", () => {
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });
 
+  it("0026 criterion 5: a navigation to /tableau-de-bord/qr without a session is redirected to /connexion", async () => {
+    const response = await proxyModule.proxy(
+      new NextRequest("http://localhost:3000/tableau-de-bord/qr", { method: "GET", headers: { accept: "text/html" } }),
+    );
+
+    expect(isRedirect(response)).toBe(true);
+    expect(new URL(response.headers.get("location") ?? "").pathname).toBe("/connexion");
+  });
+
   it("0025 decision 13: applies to the dashboard and to /activer (refresh only), nothing else", () => {
     expect([...proxyModule.config.matcher].sort()).toStrictEqual(["/activer/:path*", "/tableau-de-bord/:path*"]);
   });
