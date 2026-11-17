@@ -1,0 +1,182 @@
+{
+  "name": "carnet-media-purge",
+  "nodes": [
+    {
+      "id": "b7f0c2a1-0d1e-4b8e-9a51-3f1c0a7e2d01",
+      "name": "Daily schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "15 3 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b7f0c2a1-0d1e-4b8e-9a51-3f1c0a7e2d05",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b7f0c2a1-0d1e-4b8e-9a51-3f1c0a7e2d06",
+              "name": "supabaseUrl",
+              "value": "https://supabase.example",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "b7f0c2a1-0d1e-4b8e-9a51-3f1c0a7e2d02",
+      "name": "List orphan media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/list_orphan_media",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Profile",
+              "value": "carnet"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"p_older_than\": \"24 hours\" }",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "name": "carnet Supabase service_role"
+        }
+      }
+    },
+    {
+      "id": "b7f0c2a1-0d1e-4b8e-9a51-3f1c0a7e2d03",
+      "name": "Batch by 100",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const names = $input.all().map((item) => item.json.name).filter((name) => typeof name === 'string' && name !== '');\nconst batches = [];\nfor (let i = 0; i < names.length; i += 100) {\n  batches.push({ json: { prefixes: names.slice(i, i + 100) } });\n}\nreturn batches;"
+      }
+    },
+    {
+      "id": "b7f0c2a1-0d1e-4b8e-9a51-3f1c0a7e2d04",
+      "name": "Delete orphan media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/storage/v1/object/carnet-media",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ prefixes: $json.prefixes }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "name": "carnet Supabase service_role"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily schedule": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "List orphan media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List orphan media": {
+      "main": [
+        [
+          {
+            "node": "Batch by 100",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch by 100": {
+      "main": [
+        [
+          {
+            "node": "Delete orphan media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Paris"
+  },
+  "active": false
+}
