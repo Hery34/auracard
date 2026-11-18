@@ -36,6 +36,9 @@ const loadProfile = cache(async (slug: string): Promise<PublicProfile> => {
   return result.value;
 });
 
+/** Defining `openGraph` here replaces the root one: without avatar, the brand image (`src/app/opengraph-image.png`) is restated. */
+const DEFAULT_OPEN_GRAPH_IMAGE = { url: "/opengraph-image.png", width: 1200, height: 630, alt: "AuraCard" };
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const profile = await loadProfile((await params).slug);
   const description = [profile.jobTitle, profile.company].filter((part) => part !== null).join(" · ");
@@ -48,7 +51,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: "profile",
       title: profile.displayName,
       ...(description === "" ? {} : { description }),
-      ...(avatar === null ? {} : { images: [{ url: avatar, alt: profile.displayName }] }),
+      images: [avatar === null ? DEFAULT_OPEN_GRAPH_IMAGE : { url: avatar, alt: profile.displayName }],
     },
   };
 }

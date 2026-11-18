@@ -30,5 +30,12 @@
 - **DOIT** : suppression de compte = suppression en cascade des données du projet `carnet` et de l'appartenance `platform.project_members`.
 - Instance auto-hébergée : l'hébergement doit rester dans l'Union européenne.
 
+## Fichiers SVG versionnés (logos, icônes)
+- **DOIT** : aucun `<script>`, `<foreignObject>`, `<!DOCTYPE` ni `<!ENTITY` ; aucun attribut `on*`.
+- **DOIT** : aucune ressource externe : `href` / `xlink:href` limités aux ancres internes (`#id`), aucun `<image>`, aucun `url()` hors `#id`, aucun `@import`.
+- **DOIT** : un `viewBox` ; fond transparent sauf déclinaison explicitement prévue sur fond plein.
+- **DOIT** : un test automatique (dans `pnpm check`) applique ces règles à tous les SVG de `public/brand/` et aux icônes de `src/app/`.
+- Les SVG ne sont jamais acceptés en envoi utilisateur (images de profil : JPEG, PNG, WebP seulement, ADR 0014).
+
 ## En-têtes HTTP
 - CSP stricte (nonces si scripts en ligne), `frame-ancestors 'none'` sauf pages d'intégration explicitement prévues.

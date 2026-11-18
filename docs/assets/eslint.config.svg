@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 440" width="680" height="440">
+  <rect width="680" height="440" fill="#111111"/>
+  <g fill="none" stroke-width="62">
+    <!-- C blanc -->
+    <path d="M317.2,87.2 A166,166 0 1,0 317.2,348.8" stroke="#FFFFFF"/>
+    <!-- bande verte basse (passe sous la bande haute) -->
+    <line x1="250" y1="238" x2="350" y2="338" stroke="#111111" stroke-width="78"/>
+    <line x1="250" y1="238" x2="350" y2="338" stroke="#1ABC8C"/>
+    <!-- découpe de la bande haute -->
+    <line x1="152" y1="308" x2="330" y2="130" stroke="#111111" stroke-width="78"/>
+    <!-- anneau vert + bande haute -->
+    <circle cx="461" cy="218" r="166" stroke="#1ABC8C"/>
+    <line x1="152" y1="308" x2="350" y2="110" stroke="#1ABC8C"/>
+  </g>
+  <!-- intérieur de l'anneau -->
+  <circle cx="461" cy="218" r="135" fill="#111111"/>
+  <!-- forme blanche intérieure -->
+  <rect x="356" y="140" width="122" height="60" fill="#FFFFFF"/>
+  <line x1="390" y1="292" x2="532" y2="138" stroke="#FFFFFF" stroke-width="64"/>
+</svg>

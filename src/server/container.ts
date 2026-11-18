@@ -69,6 +69,9 @@ export type Container = {
   auth: AuthGateway;
 };
 
+/** Public origin (`SITE_URL`, normalized, no trailing slash): `metadataBase` of the root layout. */
+export const siteUrl: string = env.SITE_URL;
+
 /** vCard of the route `/v/{slug}`: rate limit `vcard` on the address of the given request headers, then the file. */
 export type DownloadVCardFromRequest = (slug: string, headers: Headers) => Promise<Result<VCardFile | null, RateLimitError>>;
 
