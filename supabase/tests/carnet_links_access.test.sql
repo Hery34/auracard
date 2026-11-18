@@ -5,6 +5,7 @@
 -- Décision 7 : p_links nul ou non tableau → 22023 ; clé position ignorée ; get_public_links a exactement la
 -- visibilité de get_public_profile (publié, non publié, inexistant, propriétaire sans appartenance carnet).
 -- La structure, les contraintes nommées et les propriétés des fonctions sont dans carnet_links_schema.test.sql.
+-- Amendé par 0034 (décision 2) : get_public_links expose id ; le contrôle des id renvoyés est dans carnet_public_collection.test.sql.
 -- Contrat de replace_links(p_profile_id, p_links) : p_links est un tableau jsonb d'objets {id?, platform, url, label?} ;
 -- la position de chaque lien est son rang dans le tableau (0 pour le premier) ; une clé position fournie est ignorée.
 -- Décision 8 : un élément portant l'id d'un lien existant du profil le met à jour sur place (id conservé) ; sans id → créé ;
@@ -864,15 +865,15 @@ reset role;
 set local role anon;
 set local request.jwt.claims = '{"role":"anon"}';
 select results_eq(
-  $$select * from carnet.get_public_links('alice-0016')$$,
+  $$select platform, url, label, position from carnet.get_public_links('alice-0016')$$,
   $$values ('document'::text, 'https://alice.example.test/brochure.pdf'::text, 'Brochure'::text, 0::smallint),
            ('github', 'https://github.com/alice-0016', null, 1::smallint),
            ('linkedin', 'https://www.linkedin.com/in/alice-0016', 'LinkedIn', 2::smallint)$$,
   'critère 3 : anon obtient les liens du profil publié, triés par position, colonnes platform, url, label, position'
 );
-select throws_ok(
+select lives_ok(
   $$select id from carnet.get_public_links('alice-0016')$$,
-  '42703', null, 'critère 3 : get_public_links n''expose pas id'
+  'critère 3 (amendé 0034, décision 2) : get_public_links expose id (uuid du lien, sans donnée personnelle)'
 );
 select throws_ok(
   $$select profile_id from carnet.get_public_links('alice-0016')$$,

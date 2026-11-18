@@ -6,6 +6,7 @@
 -- Décision 8, second audit : url en ASCII imprimable, hôte [A-Za-z0-9.-] (port facultatif), libellé sans points de code
 -- invisibles listés (U+200D autorisé), links_label_blank_check, verrou for no key update et 42501 si aucune ligne verrouillée.
 -- Les comportements par persona, replace_links et get_public_links en situation sont dans carnet_links_access.test.sql.
+-- Amendé par 0034 (décision 2) : get_public_links renvoie aussi id (uuid du lien), en première colonne.
 -- Fixtures (postgres, bypassrls, plage 0…16xx propre à cette fiche ; 0…1602 et 0…160a–0…160d appartiennent au fichier access) :
 --   comptes auth.users : 0…1601 propriétaire du profil 0…1610 (contraintes, trigger) ; 0…1603 propriétaire du profil 0…1611 (cascade)
 --   liens : 0…1630 (trigger), 0…1631 (cascade)
@@ -452,11 +453,11 @@ select ok(
      where n.nspname = 'carnet'
        and p.proname = 'get_public_links'
        and p.proretset
-       and p.proargnames = array['p_slug', 'platform', 'url', 'label', 'position']
-       and p.proargmodes = array['i', 't', 't', 't', 't']::"char"[]
-       and p.proallargtypes = array['text'::regtype, 'text'::regtype, 'text'::regtype, 'text'::regtype, 'smallint'::regtype]::oid[]
+       and p.proargnames = array['p_slug', 'id', 'platform', 'url', 'label', 'position']
+       and p.proargmodes = array['i', 't', 't', 't', 't', 't']::"char"[]
+       and p.proallargtypes = array['text'::regtype, 'uuid'::regtype, 'text'::regtype, 'text'::regtype, 'text'::regtype, 'smallint'::regtype]::oid[]
   ),
-  'critère 3 (décision 6) : get_public_links(p_slug text) returns table(platform text, url text, label text, position smallint), sans id ni profile_id'
+  'critère 3 (décision 6, amendé 0034) : get_public_links(p_slug text) returns table(id uuid, platform text, url text, label text, position smallint), sans profile_id'
 );
 select ok(
   exists (
