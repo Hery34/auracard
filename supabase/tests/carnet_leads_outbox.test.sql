@@ -42,8 +42,12 @@
 --     claim_outbox fait attempts + 1 et renvoie la valeur après incrément ; un événement pending dont attempts vaut déjà
 --     5 (n8n tombé pendant la 5e tentative) passe dead à la réservation suivante, sans être renvoyé ni incrémenté.
 --     5 cycles réservation + échec = 5 envois ; 6 réservations sans échec renvoient 1, 2, 3, 4, 5 puis rien.
+--     Amendement 0036 (point 15) : claim_outbox ne considère que type = 'lead.created' ; un booking.* pending n'est ni
+--     renvoyé, ni verrouillé, ni incrémenté, ni marqué (il est consommé par carnet.claim_booking_outbox).
 --   carnet.complete_outbox(p_id uuid) returns void : status processed, processed_at = now() ; rejeu sans effet
 --     (processed_at inchangé) ; id inconnu sans erreur. service_role seul.
+--     Amendement 0036 (point 17) : pour un booking.*, complete_outbox et fail_outbox (passage à dead) retirent la clé
+--     cancel_token de la charge utile ; la charge utile d'un lead.created n'est jamais modifiée.
 --   carnet.fail_outbox(p_id uuid, p_error text) returns void : n'incrémente pas attempts ; enregistre last_error ;
 --     dead si attempts >= 5, sinon reste pending avec son verrou (nouvel essai après 5 minutes) ; un
 --     événement processed ou dead ne redevient pas pending ; last_error ≤ 500 caractères et sans l'adresse e-mail
@@ -73,7 +77,7 @@ begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
 
-select plan(241);
+select plan(247);
 
 -- Compte les lignes supprimées par une instruction exécutée avec les droits de l'appelant (security invoker : la RLS
 -- s'applique au rôle courant). Un delete dans un WITH ne peut pas être imbriqué dans un argument de is().
@@ -969,6 +973,14 @@ insert into carnet.outbox (id, type, profile_id, payload, status, attempts, lock
    now() - interval '40 minutes'),
   ('00000000-0000-4000-8000-0000000031e7', 'lead.created', '00000000-0000-4000-8000-000000003110',
    '{"lead_id":"00000000-0000-4000-8000-0000000031d0"}', 'dead', 5, null, null, now() - interval '50 minutes');
+select lives_ok(
+  $$insert into carnet.outbox (id, type, profile_id, payload, status, attempts, created_at) values
+      ('00000000-0000-4000-8000-0000000031ec', 'booking.confirmed', '00000000-0000-4000-8000-000000003110',
+       '{"booking_id":"00000000-0000-4000-8000-0000000031bf","cancel_token":"x"}', 'pending', 0, now() - interval '60 minutes'),
+      ('00000000-0000-4000-8000-0000000031ed', 'booking.reminder', '00000000-0000-4000-8000-000000003110',
+       '{"booking_id":"00000000-0000-4000-8000-0000000031bf","cancel_token":"y"}', 'pending', 5, now() - interval '55 minutes')$$,
+  'amendement 0036 : deux booking.* pending, les plus anciens de l''outbox (dont un à 5 tentatives)'
+);
 
 set local role service_role;
 set local request.jwt.claims = '{"role":"service_role"}';
@@ -1031,6 +1043,12 @@ select is(
 select throws_ok($$select * from carnet.claim_outbox(0)$$, '22023', null, 'décision 7 : claim_outbox(0) refusé (22023)');
 select throws_ok($$select * from carnet.claim_outbox(null)$$, '22023', null, 'décision 7 : claim_outbox(null) refusé (22023)');
 reset role;
+select is(
+  (select string_agg(right(id::text, 2) || '=' || status || '/' || attempts || '/' || (locked_at is null)::text, ',' order by id)
+     from carnet.outbox where id in ('00000000-0000-4000-8000-0000000031ec', '00000000-0000-4000-8000-0000000031ed')),
+  'ec=pending/0/true,ed=pending/5/true',
+  'amendement 0036 : après trois claim_outbox, les booking.* restent pending, non verrouillés, attempts inchangé (ni renvoyés, ni marqués dead)'
+);
 
 -- ---------------------------------------------------------------------------
 -- Décision 7 — complete_outbox idempotente
@@ -1064,6 +1082,27 @@ select is(
   'processed ' || '2026-11-01 00:00:00+00'::timestamptz::text,
   'décision 7 : le second acquittement ne change rien (processed_at inchangé)'
 );
+select is(
+  (select payload from carnet.outbox where id = '00000000-0000-4000-8000-0000000031e1'),
+  '{"lead_id":"00000000-0000-4000-8000-0000000031d0"}'::jsonb,
+  'amendement 0036 (point 17, non-régression) : complete_outbox ne modifie pas la charge utile d''un lead.created'
+);
+insert into carnet.outbox (id, type, profile_id, payload, status, attempts, locked_at, created_at) values
+  ('00000000-0000-4000-8000-0000000031ee', 'lead.created', '00000000-0000-4000-8000-000000003110',
+   '{"lead_id":"00000000-0000-4000-8000-0000000031d0","cancel_token":"lead-key"}', 'processed', 1, now(), now() - interval '2 hours');
+set local role service_role;
+set local request.jwt.claims = '{"role":"service_role"}';
+select lives_ok(
+  $$select carnet.complete_outbox('00000000-0000-4000-8000-0000000031ee')$$,
+  'amendement 0036 (point 17) : complete_outbox sur un lead.created déjà traité'
+);
+reset role;
+select is(
+  (select payload ->> 'cancel_token' from carnet.outbox where id = '00000000-0000-4000-8000-0000000031ee'),
+  'lead-key',
+  'amendement 0036 (point 17, non-régression) : le retrait de cancel_token est réservé aux booking.* (lead.created intact)'
+);
+delete from carnet.outbox where id = '00000000-0000-4000-8000-0000000031ee';
 update carnet.outbox set locked_at = null where id = '00000000-0000-4000-8000-0000000031e1';
 set local role service_role;
 set local request.jwt.claims = '{"role":"service_role"}';
@@ -1161,6 +1200,11 @@ select is(
   (select status || ' ' || attempts || ' ' || last_error from carnet.outbox where id = '00000000-0000-4000-8000-0000000031f1'),
   'dead 5 smtp timeout',
   'critère 4 : après 5 tentatives échouées, f1 est dead, attempts = 5, last_error conservé'
+);
+select is(
+  (select payload from carnet.outbox where id = '00000000-0000-4000-8000-0000000031f1'),
+  '{"lead_id":"00000000-0000-4000-8000-0000000031d0"}'::jsonb,
+  'amendement 0036 (point 17, non-régression) : fail_outbox au passage à dead ne modifie pas la charge utile d''un lead.created'
 );
 update carnet.outbox set locked_at = null where id = '00000000-0000-4000-8000-0000000031f1';
 set local role service_role;

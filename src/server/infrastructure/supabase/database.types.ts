@@ -51,6 +51,118 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"availability_exceptions": {
+                  Row: {
+                    "created_at": string,"id": string,"kind": string,"profile_id": string,"range": unknown
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"kind": string,"profile_id": string,"range": unknown
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"kind"?: string,"profile_id"?: string,"range"?: unknown
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "availability_exceptions_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"availability_rules": {
+                  Row: {
+                    "created_at": string,"end_time": string,"id": string,"profile_id": string,"start_time": string,"weekday": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"end_time": string,"id"?: string,"profile_id": string,"start_time": string,"weekday": number
+                  }
+                  Update: {
+                    "created_at"?: string,"end_time"?: string,"id"?: string,"profile_id"?: string,"start_time"?: string,"weekday"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "availability_rules_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"booking_tokens": {
+                  Row: {
+                    "booking_id": string,"created_at": string,"token_hash": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "booking_id": string,"created_at"?: string,"token_hash": string
+                  }
+                  Update: {
+                    "booking_id"?: string,"created_at"?: string,"token_hash"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "booking_tokens_booking_id_fkey"
+      columns: ["booking_id"]
+isOneToOne: false
+      referencedRelation: "bookings"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"bookings": {
+                  Row: {
+                    "cancelled_at": string | null,"cancelled_by": string | null,"consent_at": string,"created_at": string,"event_type_id": string,"id": string,"idempotency_key": string,"message": string | null,"profile_id": string,"range": unknown,"reminder_queued_at": string | null,"rescheduled_from": string | null,"status": string,"visitor_email": string,"visitor_name": string,"visitor_phone": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "cancelled_at"?: string | null,"cancelled_by"?: string | null,"consent_at": string,"created_at"?: string,"event_type_id": string,"id"?: string,"idempotency_key": string,"message"?: string | null,"profile_id": string,"range": unknown,"reminder_queued_at"?: string | null,"rescheduled_from"?: string | null,"status"?: string,"visitor_email": string,"visitor_name": string,"visitor_phone"?: string | null
+                  }
+                  Update: {
+                    "cancelled_at"?: string | null,"cancelled_by"?: string | null,"consent_at"?: string,"created_at"?: string,"event_type_id"?: string,"id"?: string,"idempotency_key"?: string,"message"?: string | null,"profile_id"?: string,"range"?: unknown,"reminder_queued_at"?: string | null,"rescheduled_from"?: string | null,"status"?: string,"visitor_email"?: string,"visitor_name"?: string,"visitor_phone"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "bookings_event_type_id_profile_id_fkey"
+      columns: ["event_type_id","profile_id"]
+isOneToOne: false
+      referencedRelation: "event_types"
+      referencedColumns: ["id","profile_id"]
+    },{
+      foreignKeyName: "bookings_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "bookings_rescheduled_from_fkey"
+      columns: ["rescheduled_from"]
+isOneToOne: false
+      referencedRelation: "bookings"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"event_types": {
+                  Row: {
+                    "buffer_min": number,"created_at": string,"duration_min": number,"id": string,"is_active": boolean,"location_kind": string,"location_text": string | null,"min_notice_min": number,"position": number,"profile_id": string,"title": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "buffer_min"?: number,"created_at"?: string,"duration_min": number,"id"?: string,"is_active"?: boolean,"location_kind": string,"location_text"?: string | null,"min_notice_min"?: number,"position": number,"profile_id": string,"title": string
+                  }
+                  Update: {
+                    "buffer_min"?: number,"created_at"?: string,"duration_min"?: number,"id"?: string,"is_active"?: boolean,"location_kind"?: string,"location_text"?: string | null,"min_notice_min"?: number,"position"?: number,"profile_id"?: string,"title"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "event_types_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"leads": {
                   Row: {
                     "consent_at": string,"created_at": string,"email": string,"id": string,"idempotency_key": string,"message": string,"name": string,"profile_id": string
@@ -133,14 +245,14 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "accepts_leads": boolean,"avatar_url": string | null,"banner_url": string | null,"bio": string | null,"company": string | null,"contact_email": string | null,"created_at": string,"display_name": string,"id": string,"is_indexable": boolean,"is_published": boolean,"job_title": string | null,"logo_url": string | null,"owner_id": string,"phone": string | null,"slug": string,"theme": NonNullable<Json>,"updated_at": string,"website_url": string | null
+                    "accepts_leads": boolean,"avatar_url": string | null,"banner_url": string | null,"bio": string | null,"company": string | null,"contact_email": string | null,"created_at": string,"display_name": string,"id": string,"is_indexable": boolean,"is_published": boolean,"job_title": string | null,"logo_url": string | null,"owner_id": string,"phone": string | null,"slug": string,"theme": NonNullable<Json>,"time_zone": string,"updated_at": string,"website_url": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "accepts_leads"?: boolean,"avatar_url"?: string | null,"banner_url"?: string | null,"bio"?: string | null,"company"?: string | null,"contact_email"?: string | null,"created_at"?: string,"display_name": string,"id"?: string,"is_indexable"?: boolean,"is_published"?: boolean,"job_title"?: string | null,"logo_url"?: string | null,"owner_id": string,"phone"?: string | null,"slug": string,"theme"?: NonNullable<Json>,"updated_at"?: string,"website_url"?: string | null
+                    "accepts_leads"?: boolean,"avatar_url"?: string | null,"banner_url"?: string | null,"bio"?: string | null,"company"?: string | null,"contact_email"?: string | null,"created_at"?: string,"display_name": string,"id"?: string,"is_indexable"?: boolean,"is_published"?: boolean,"job_title"?: string | null,"logo_url"?: string | null,"owner_id": string,"phone"?: string | null,"slug": string,"theme"?: NonNullable<Json>,"time_zone"?: string,"updated_at"?: string,"website_url"?: string | null
                   }
                   Update: {
-                    "accepts_leads"?: boolean,"avatar_url"?: string | null,"banner_url"?: string | null,"bio"?: string | null,"company"?: string | null,"contact_email"?: string | null,"created_at"?: string,"display_name"?: string,"id"?: string,"is_indexable"?: boolean,"is_published"?: boolean,"job_title"?: string | null,"logo_url"?: string | null,"owner_id"?: string,"phone"?: string | null,"slug"?: string,"theme"?: NonNullable<Json>,"updated_at"?: string,"website_url"?: string | null
+                    "accepts_leads"?: boolean,"avatar_url"?: string | null,"banner_url"?: string | null,"bio"?: string | null,"company"?: string | null,"contact_email"?: string | null,"created_at"?: string,"display_name"?: string,"id"?: string,"is_indexable"?: boolean,"is_published"?: boolean,"job_title"?: string | null,"logo_url"?: string | null,"owner_id"?: string,"phone"?: string | null,"slug"?: string,"theme"?: NonNullable<Json>,"time_zone"?: string,"updated_at"?: string,"website_url"?: string | null
                   }
                   Relationships: [
                     
@@ -205,8 +317,21 @@ isOneToOne: true
 "aggregate_analytics_day":
 { Args: { "p_day": string }; Returns: undefined
                            },
+"assert_bookable_slot":
+{ Args: { "p_buffer_min": number,"p_duration_min": number,"p_ignore_booking_id": string,"p_min_notice_min": number,"p_now": string,"p_profile_id": string,"p_start": string,"p_time_zone": string }; Returns: undefined
+                           },
 "assert_valid_analytics_event":
 { Args: { "p_device_class": string,"p_id": string,"p_link_id": string,"p_source": string,"p_type": string }; Returns: undefined
+                           },
+"book_slot":
+{ Args: { "p_device_class": string,"p_event_type_id": string,"p_idempotency_key": string,"p_message": string,"p_slug": string,"p_start": string,"p_visitor_email": string,"p_visitor_name": string,"p_visitor_phone": string }; Returns: {
+              "booking_id": string,"cancel_token": string
+            }[]
+                           },
+"book_slot_at":
+{ Args: { "p_device_class": string,"p_event_type_id": string,"p_idempotency_key": string,"p_message": string,"p_now": string,"p_slug": string,"p_start": string,"p_visitor_email": string,"p_visitor_name": string,"p_visitor_phone": string }; Returns: {
+              "booking_id": string,"cancel_token": string
+            }[]
                            },
 "can_create_profile":
 { Args: { "p_owner_id": string }; Returns: boolean
@@ -217,8 +342,22 @@ isOneToOne: true
 "can_read_profile_private":
 { Args: { "p_profile_id": string }; Returns: boolean
                            },
+"cancel_booking_by_token":
+{ Args: { "p_token": string }; Returns: string
+                           },
+"cancel_booking_by_token_at":
+{ Args: { "p_now": string,"p_token": string }; Returns: string
+                           },
+"cancel_own_booking":
+{ Args: { "p_booking_id": string }; Returns: undefined
+                           },
 "capture_lead":
 { Args: { "p_device_class": string,"p_email": string,"p_idempotency_key": string,"p_message": string,"p_name": string,"p_slug": string }; Returns: string
+                           },
+"claim_booking_outbox":
+{ Args: { "p_limit": number }; Returns: {
+              "attempts": number,"booking_end": string,"booking_id": string,"booking_start": string,"cancel_token": string,"cancelled_by": string,"event_type_title": string,"id": string,"location_kind": string,"location_text": string,"owner_display_name": string,"owner_email": string,"previous_booking_end": string,"previous_booking_id": string,"previous_booking_start": string,"profile_slug": string,"time_zone": string,"type": string,"visitor_email": string,"visitor_message": string,"visitor_name": string,"visitor_phone": string
+            }[]
                            },
 "claim_outbox":
 { Args: { "p_limit": number }; Returns: {
@@ -255,8 +394,20 @@ isOneToOne: true
 "fail_outbox":
 { Args: { "p_error": string,"p_id": string }; Returns: undefined
                            },
+"get_booking_by_token":
+{ Args: { "p_token": string }; Returns: Json
+                           },
+"get_booking_by_token_at":
+{ Args: { "p_now": string,"p_token": string }; Returns: Json
+                           },
 "get_own_daily_aggregates":
 { Args: { "p_from": string,"p_profile_id": string,"p_to": string }; Returns: Json
+                           },
+"get_public_booking_page":
+{ Args: { "p_slug": string }; Returns: Json
+                           },
+"get_public_busy_ranges":
+{ Args: { "p_from": string,"p_slug": string,"p_to": string }; Returns: Json
                            },
 "get_public_links":
 { Args: { "p_slug": string }; Returns: {
@@ -286,6 +437,12 @@ isOneToOne: true
         isOneToOne: true
         isSetofReturn: true
       } },
+"hash_booking_token":
+{ Args: { "p_token": string }; Returns: string
+                           },
+"insert_booking":
+{ Args: { "p_consent_at": string,"p_duration_min": number,"p_event_type_id": string,"p_idempotency_key": string,"p_message": string,"p_now": string,"p_profile_id": string,"p_rescheduled_from": string,"p_start": string,"p_visitor_email": string,"p_visitor_name": string,"p_visitor_phone": string }; Returns: Record<string, unknown>
+                           },
 "is_member":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
@@ -310,13 +467,25 @@ isOneToOne: true
 "is_valid_qr_style":
 { Args: { "p_style": Json }; Returns: boolean
                            },
+"is_valid_time_zone":
+{ Args: { "p_value": string }; Returns: boolean
+                           },
+"issue_booking_token":
+{ Args: { "p_booking_id": string }; Returns: string
+                           },
 "list_orphan_media":
 { Args: { "p_older_than": string }; Returns: {
               "name": string
             }[]
                            },
+"lock_profile_bookings":
+{ Args: { "p_profile_id": string }; Returns: undefined
+                           },
 "media_profile_id":
 { Args: { "p_object_name": string }; Returns: string
+                           },
+"meets_min_notice":
+{ Args: { "p_min_notice_min": number,"p_now": string,"p_start": string }; Returns: boolean
                            },
 "provision_nfc_tags":
 { Args: { "p_batch_id": string,"p_count": number }; Returns: {
@@ -324,6 +493,9 @@ isOneToOne: true
             }[]
                            },
 "purge_analytics_events":
+{ Args: { "p_older_than": string }; Returns: number
+                           },
+"purge_bookings":
 { Args: { "p_older_than": string }; Returns: number
                            },
 "purge_leads":
@@ -334,6 +506,9 @@ isOneToOne: true
                            },
 "purge_rate_limits":
 { Args: { "p_older_than": string }; Returns: number
+                           },
+"queue_booking_reminders":
+{ Args: Record<PropertyKey, never>; Returns: number
                            },
 "random_crockford":
 { Args: { "p_length": number }; Returns: string
@@ -367,6 +542,16 @@ isOneToOne: true
         isOneToOne: false
         isSetofReturn: true
       } },
+"reschedule_booking_by_token":
+{ Args: { "p_idempotency_key": string,"p_start": string,"p_token": string }; Returns: {
+              "booking_id": string,"cancel_token": string
+            }[]
+                           },
+"reschedule_booking_by_token_at":
+{ Args: { "p_idempotency_key": string,"p_now": string,"p_start": string,"p_token": string }; Returns: {
+              "booking_id": string,"cancel_token": string
+            }[]
+                           },
 "resolve_nfc_tag":
 { Args: { "p_uid": string }; Returns: {
               "slug": string,"state": string

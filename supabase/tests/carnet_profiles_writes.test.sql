@@ -81,8 +81,8 @@ select is(
     where a.attrelid = 'carnet.profiles'::regclass
       and a.attnum > 0 and not a.attisdropped
       and has_column_privilege('authenticated', 'carnet.profiles', a.attname, 'UPDATE')),
-  array['accepts_leads', 'bio', 'company', 'contact_email', 'display_name', 'is_indexable', 'is_published', 'job_title', 'phone', 'website_url'],
-  'critère 1 (décision 1, étendue par 0031 décision 1) : authenticated a update sur exactement les 10 colonnes éditables (dont accepts_leads), aucune autre'
+  array['accepts_leads', 'bio', 'company', 'contact_email', 'display_name', 'is_indexable', 'is_published', 'job_title', 'phone', 'time_zone', 'website_url'],
+  'critère 1 (décision 1, étendue par 0031 décision 1 et 0036 décision 1) : authenticated a update sur exactement les 11 colonnes éditables (dont accepts_leads, time_zone), aucune autre'
 );
 select ok(
   has_table_privilege('service_role', 'carnet.profiles', 'UPDATE'),

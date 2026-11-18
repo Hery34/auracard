@@ -31,6 +31,12 @@ Reprend l'ADR 0010 intégralement (points 2 à 5 inchangés) et étend la liste 
 
 - *Précision validée par Hery (18/11/2026, fiches 0028 et 0031)* : la conservation des droits `all` de `service_role` (précision du 17/11) s'étend à `carnet.analytics_events`, `analytics_daily`, `leads` et `outbox`, pour les mêmes raisons (tests d'intégration, exploitation). L'application n'y accède que par `rpc` (`record_event`, `capture_lead`, fonctions de l'outbox).
 
+- *Avenant validé par Hery (18/11/2026, phase 5, fiches 0036, 0039–0041)* : nouvelles fonctions réservées à `service_role`, chacune appelée par un adaptateur dédié injecté par `container.ts` (règle ESLint `adminAdapters` étendue) :
+  - `carnet.book_slot` — réservation publique (0039), après validation, filtrage des robots, limitation de débit et Turnstile ;
+  - `carnet.cancel_booking_by_token`, `carnet.reschedule_booking_by_token`, `carnet.get_booking_by_token` — page du lien reçu par e-mail (0040), après limitation de débit ;
+  - `carnet.claim_booking_outbox`, avec `complete_outbox` / `fail_outbox` existantes — workflow n8n des rendez-vous (0041, clé dans les identifiants n8n, hors Next.js).
+  Ouvertes à `anon` ou `authenticated`, elles contourneraient Turnstile et les limites (réservations fantômes, e-mails en masse) ou exposeraient les données des visiteurs. `cancel_own_booking` reste appelée par le client utilisateur (propriétaire, RLS). Le jeton d'annulation en clair est retiré de la charge utile de l'outbox dès le traitement du message (`complete_outbox`, `fail_outbox`, événements écartés).
+
 ## Alternatives écartées
 - Compteur en mémoire dans le proxy : perdu au redémarrage, non testable en base, le proxy ne protège rien (`nextjs.md`).
 - Fonction ouverte à `anon` : consommation de quotas d'autrui, remplissage de la table.
