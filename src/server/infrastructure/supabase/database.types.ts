@@ -255,6 +255,9 @@ isOneToOne: true
 "fail_outbox":
 { Args: { "p_error": string,"p_id": string }; Returns: undefined
                            },
+"get_own_daily_aggregates":
+{ Args: { "p_from": string,"p_profile_id": string,"p_to": string }; Returns: Json
+                           },
 "get_public_links":
 { Args: { "p_slug": string }; Returns: {
               "id": string,"label": string,"platform": string,"position": number,"url": string

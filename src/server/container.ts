@@ -16,6 +16,7 @@ import { createServerSupabaseClient } from "@/server/infrastructure/supabase/ser
 import { profileCacheTag } from "@/server/cache-tags";
 import { makeCachedPublicProfileReader } from "@/server/repositories/cached-public-profile-reader";
 import { makeSupabaseEventRecorder } from "@/server/repositories/supabase-event-recorder";
+import { makeSupabaseDailyAggregateReader } from "@/server/repositories/supabase-daily-aggregate-reader";
 import { makeSupabaseCarnetAccountEraser } from "@/server/repositories/supabase-carnet-account-eraser";
 import { makeSupabaseInstanceAccountRemover } from "@/server/repositories/supabase-instance-account-remover";
 import { makeSupabaseLinkRepository } from "@/server/repositories/supabase-link-repository";
@@ -36,6 +37,7 @@ import { makeDeleteAccount, type DeleteAccount } from "@/server/use-cases/delete
 import { makeDownloadVCard } from "@/server/use-cases/download-vcard";
 import { makeGetOwnProfile, type GetOwnProfile } from "@/server/use-cases/get-own-profile";
 import { makeGetOwnQrCode, type GetOwnQrCode } from "@/server/use-cases/get-own-qr-code";
+import { makeGetOwnStats, type GetOwnStats } from "@/server/use-cases/get-own-stats";
 import { makeGetPublicProfile, type GetPublicProfile } from "@/server/use-cases/get-public-profile";
 import { makeGetVCard, type VCardFile } from "@/server/use-cases/get-vcard";
 import {
@@ -72,6 +74,7 @@ export type Container = {
   releaseNfcTag: ReleaseNfcTag;
   getOwnQrCode: GetOwnQrCode;
   saveQrStyle: SaveQrStyle;
+  getOwnStats: GetOwnStats;
   deleteAccount: DeleteAccount;
   qrPrintReady: boolean;
   auth: AuthGateway;
@@ -146,6 +149,13 @@ export async function createContainer(): Promise<Container> {
     releaseNfcTag: makeReleaseNfcTag({ auth, rateLimiter, profiles, tags }),
     getOwnQrCode: makeGetOwnQrCode({ auth, profiles, qrCodes, siteUrl: env.SITE_URL }),
     saveQrStyle: makeSaveQrStyle({ auth, rateLimiter, profiles, qrCodes }),
+    getOwnStats: makeGetOwnStats({
+      auth,
+      profiles,
+      links,
+      aggregates: makeSupabaseDailyAggregateReader(server),
+      clock: { now: () => new Date() },
+    }),
     deleteAccount: makeDeleteAccount({
       auth,
       rateLimiter,

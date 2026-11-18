@@ -46,8 +46,16 @@ export function isUuidV4(value: string): boolean {
   return UUID_V4_PATTERN.test(value);
 }
 
-function includes<T extends string>(list: readonly T[], value: string): value is T {
+export function includes<T extends string>(list: readonly T[], value: string): value is T {
   return (list as readonly string[]).includes(value);
+}
+
+export function isAnalyticsEventType(value: string): value is AnalyticsEventType {
+  return includes(ANALYTICS_EVENT_TYPES, value);
+}
+
+export function isAnalyticsSource(value: string): value is AnalyticsSource {
+  return includes(ANALYTICS_SOURCES, value);
 }
 
 export function sourceFromQuery(value: string | null): AnalyticsSource {
