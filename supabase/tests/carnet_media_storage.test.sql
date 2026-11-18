@@ -906,9 +906,9 @@ select is(
   (select a.attname::text
      from pg_catalog.pg_attribute a
     where a.attrelid = 'carnet.public_profiles'::regclass and a.attnum > 0 and not a.attisdropped
-    order by a.attnum desc limit 1),
+    order by a.attnum offset 12 limit 1),
   'logo_url',
-  'critère 3 (décision 9) : logo_url est la dernière colonne de carnet.public_profiles (colonnes existantes inchangées)'
+  'critère 3 (décision 9) : logo_url est la 13e colonne de carnet.public_profiles, après les 12 colonnes existantes inchangées (0031 ajoute accepts_leads après elle)'
 );
 update carnet.profiles set is_published = true where id = '00000000-0000-4000-8000-000000002111';
 

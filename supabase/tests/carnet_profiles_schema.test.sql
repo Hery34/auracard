@@ -25,8 +25,8 @@ select columns_are(
   'carnet', 'profiles',
   array['id', 'owner_id', 'slug', 'display_name', 'job_title', 'company', 'bio', 'avatar_url', 'banner_url',
         'theme', 'contact_email', 'phone', 'website_url', 'is_published', 'is_indexable', 'created_at', 'updated_at',
-        'logo_url'],
-  'critère 1 (amendé 0021 : logo_url) : profiles a exactement les colonnes de la décision 1'
+        'logo_url', 'accepts_leads'],
+  'critère 1 (amendé 0021 : logo_url ; 0031 : accepts_leads) : profiles a exactement les colonnes de la décision 1'
 );
 
 select col_type_is('carnet', 'profiles', 'id', 'uuid', 'critère 1 : profiles.id est uuid');
@@ -493,8 +493,8 @@ select has_view('carnet', 'public_profiles', 'critère 5 : la vue carnet.public_
 select columns_are(
   'carnet', 'public_profiles',
   array['slug', 'display_name', 'job_title', 'company', 'bio', 'avatar_url', 'banner_url', 'theme',
-        'contact_email', 'phone', 'website_url', 'is_indexable', 'logo_url'],
-  'critère 5 (amendé 0021, décision 9 : logo_url) : public_profiles expose exactement les colonnes publiques de la décision 7 (ni id, ni owner_id, ni horodatages)'
+        'contact_email', 'phone', 'website_url', 'is_indexable', 'logo_url', 'accepts_leads'],
+  'critère 5 (amendé 0021, décision 9 : logo_url ; 0031, décision 10 : accepts_leads) : public_profiles expose exactement les colonnes publiques de la décision 7 (ni id, ni owner_id, ni horodatages)'
 );
 select ok(
   exists (
