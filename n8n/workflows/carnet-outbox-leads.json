@@ -1,0 +1,379 @@
+{
+  "name": "carnet-outbox-leads",
+  "nodes": [
+    {
+      "id": "c4a1e0d2-3b5f-4e6a-9d7c-003300000001",
+      "name": "Every minute",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c4a1e0d2-3b5f-4e6a-9d7c-003300000002",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c4a1e0d2-3b5f-4e6a-9d7c-003300000020",
+              "name": "supabaseUrl",
+              "value": "https://supabase.example",
+              "type": "string"
+            },
+            {
+              "id": "c4a1e0d2-3b5f-4e6a-9d7c-003300000021",
+              "name": "fromAddress",
+              "value": "notifications@mail.example",
+              "type": "string"
+            },
+            {
+              "id": "c4a1e0d2-3b5f-4e6a-9d7c-003300000022",
+              "name": "siteUrl",
+              "value": "https://carnet.example",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "c4a1e0d2-3b5f-4e6a-9d7c-003300000003",
+      "name": "Claim outbox",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/claim_outbox",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Profile",
+              "value": "carnet"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"p_limit\": 20 }",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "name": "carnet Supabase service_role"
+        }
+      }
+    },
+    {
+      "id": "c4a1e0d2-3b5f-4e6a-9d7c-003300000004",
+      "name": "Has events",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c4a1e0d2-3b5f-4e6a-9d7c-003300000040",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "c4a1e0d2-3b5f-4e6a-9d7c-003300000005",
+      "name": "Build email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -100
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "const config = $('Config').first().json;\nconst event = $json;\n\nconst MAX_NAME_LENGTH = 100;\nconst MAX_SUBJECT_LENGTH = 150;\nconst MAX_ADDRESS_LENGTH = 254;\nconst UNVERIFIED_SENDER_WARNING = 'Expéditeur non vérifié : ne communiquez aucune information sensible.';\n\n// A single bare address: no whitespace, no second @, none of the list or display-name delimiters <>()\",;:\\[].\nconst ADDRESS = /^[^\\s@<>()\",;:\\\\[\\]]+@[^\\s@<>()\",;:\\\\[\\]]+\\.[^\\s@<>()\",;:\\\\[\\]]+$/;\n\nconst HEADER_BREAKERS = /[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]+/g;\n\nfunction oneLine(value, max) {\n  const clean = String(value ?? '').replace(HEADER_BREAKERS, ' ').replace(/\\s+/g, ' ').trim();\n  return Array.from(clean).slice(0, max).join('');\n}\n\nfunction address(value) {\n  const candidate = String(value ?? '').trim();\n  return candidate.length <= MAX_ADDRESS_LENGTH && ADDRESS.test(candidate) ? candidate : '';\n}\n\nfunction quoted(value) {\n  return `\"${value.replace(/[\\\\\"]/g, '\\\\$&')}\"`;\n}\n\nfunction escapeHtml(value) {\n  return String(value ?? '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;')\n    .replace(/'/g, '&#39;');\n}\n\nfunction formatDate(value) {\n  const date = new Date(String(value ?? ''));\n  if (Number.isNaN(date.getTime())) return '';\n  return date.toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'long', timeStyle: 'short' });\n}\n\nconst leadName = oneLine(event.lead_name, MAX_NAME_LENGTH) || 'Un visiteur';\nconst ownerName = oneLine(event.owner_display_name, MAX_NAME_LENGTH);\nconst replyTo = address(event.lead_email);\nconst message = String(event.lead_message ?? '').replace(/\\r\\n?/g, '\\n');\nconst receivedAt = formatDate(event.lead_created_at);\nconst link = `${String(config.siteUrl).replace(/\\/+$/, '')}/tableau-de-bord/messages`;\n\nconst text = [\n  ownerName === '' ? 'Bonjour,' : `Bonjour ${ownerName},`,\n  '',\n  `Vous avez reçu un nouveau message de ${leadName}${receivedAt === '' ? '' : ` le ${receivedAt}`} :`,\n  '',\n  message,\n  '',\n  replyTo === '' ? 'Ce message ne contient pas d’adresse de réponse valide.' : 'Répondez directement à cet e-mail pour écrire au visiteur.',\n  UNVERIFIED_SENDER_WARNING,\n  `Tous vos messages : ${link}`,\n  '',\n  `Référence : ${event.id}`,\n].join('\\n');\n\nconst html = [\n  '<!doctype html>',\n  '<html lang=\"fr\"><body style=\"font-family: sans-serif; line-height: 1.5;\">',\n  `<p>${ownerName === '' ? 'Bonjour,' : `Bonjour ${escapeHtml(ownerName)},`}</p>`,\n  `<p>Vous avez reçu un nouveau message de <strong>${escapeHtml(leadName)}</strong>${receivedAt === '' ? '' : ` le ${escapeHtml(receivedAt)}`} :</p>`,\n  `<blockquote style=\"margin: 0 0 1em; padding-left: 1em; border-left: 3px solid #ccc;\">${escapeHtml(message).replace(/\\n/g, '<br>')}</blockquote>`,\n  replyTo === ''\n    ? '<p>Ce message ne contient pas d’adresse de réponse valide.</p>'\n    : '<p>Répondez directement à cet e-mail pour écrire au visiteur.</p>',\n  `<p><strong>${escapeHtml(UNVERIFIED_SENDER_WARNING)}</strong></p>`,\n  `<p><a href=\"${escapeHtml(link)}\">Tous vos messages</a></p>`,\n  `<p style=\"color: #888; font-size: 12px;\">Référence : ${escapeHtml(event.id)}</p>`,\n  '</body></html>',\n].join('\\n');\n\nreturn {\n  json: {\n    id: event.id,\n    to: address(event.owner_email),\n    from: `${quoted(`${leadName} via AuraCard`)} <${oneLine(config.fromAddress, MAX_ADDRESS_LENGTH)}>`,\n    replyTo,\n    subject: oneLine(`Nouveau message de ${leadName}`, MAX_SUBJECT_LENGTH),\n    text,\n    html,\n  },\n};"
+      }
+    },
+    {
+      "id": "c4a1e0d2-3b5f-4e6a-9d7c-003300000006",
+      "name": "Send email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1200,
+        -100
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "fromEmail": "={{ $json.from }}",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "both",
+        "text": "={{ $json.text }}",
+        "html": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false,
+          "replyTo": "={{ $json.replyTo }}"
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "name": "Infomaniak SMTP carnet"
+        }
+      }
+    },
+    {
+      "id": "c4a1e0d2-3b5f-4e6a-9d7c-003300000007",
+      "name": "Complete outbox",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        -200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/complete_outbox",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Profile",
+              "value": "carnet"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_id: $('Build email').item.json.id }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "name": "carnet Supabase service_role"
+        }
+      }
+    },
+    {
+      "id": "c4a1e0d2-3b5f-4e6a-9d7c-003300000008",
+      "name": "Fail outbox",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/fail_outbox",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Profile",
+              "value": "carnet"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_id: $('Build email').item.json.id, p_error: 'smtp_send_failed' }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "name": "carnet Supabase service_role"
+        }
+      }
+    },
+    {
+      "id": "c4a1e0d2-3b5f-4e6a-9d7c-003300000009",
+      "name": "Next batch",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        -100
+      ],
+      "parameters": {
+        "maxItems": 1
+      }
+    }
+  ],
+  "connections": {
+    "Every minute": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Claim outbox",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim outbox": {
+      "main": [
+        [
+          {
+            "node": "Has events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has events": {
+      "main": [
+        [
+          {
+            "node": "Build email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Build email": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send email": {
+      "main": [
+        [
+          {
+            "node": "Complete outbox",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fail outbox",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Complete outbox": {
+      "main": [
+        [
+          {
+            "node": "Next batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fail outbox": {
+      "main": [
+        [
+          {
+            "node": "Next batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Next batch": {
+      "main": [
+        [
+          {
+            "node": "Claim outbox",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Paris",
+    "saveDataSuccessExecution": "none",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false
+  },
+  "active": false
+}

@@ -18,7 +18,7 @@ Un visiteur laisse son nom, son e-mail et un message depuis le profil public ; l
 ## Décisions (validées par Hery, 18/11/2026)
 1. **Formulaire replié** (« Laisser mes coordonnées ») ; le script Turnstile n'est chargé qu'à l'ouverture : aucun script tiers pour le visiteur qui ne l'ouvre pas. Absent si `accepts_leads = false`.
 2. **Server Action** (ordre imposé) : Zod stricte (bornes de 0031) → limitation de débit `lead:<empreinte de l'adresse>` 5/h et `lead-profile:<profile_id>` 50/jour → vérification Turnstile (refus si échec ou indisponibilité) → `capture_lead` (`service_role`). Clé d'idempotence générée au montage du formulaire. Rejeu : succès, aucun doublon.
-3. **Mention d'information RGPD** sous le formulaire (finalité : transmettre vos coordonnées à `<nom du propriétaire>` ; destinataire : le propriétaire ; durée : 12 mois ; Cloudflare cité pour le contrôle anti-robot) et case à cocher obligatoire ; `consent_at` = heure serveur.
+3. **Mention d'information RGPD** sous le formulaire (finalité : transmettre vos coordonnées à `<nom du propriétaire>` ; destinataire : le propriétaire ; durée : 12 mois ; Cloudflare cité pour le contrôle anti-robot, Infomaniak pour l'envoi de l'e-mail au propriétaire) et case à cocher obligatoire ; `consent_at` = heure serveur.
 4. **Pas d'e-mail au visiteur**, pas de CRM.
 5. **Page `/tableau-de-bord/messages`** : liste des messages (plus récent d'abord), lecture seule, suppression avec confirmation ; client utilisateur (RLS), jamais `service_role`.
 6. **Tests** : clés de test Cloudflare (toujours accepté, toujours refusé) ; implémentation factice du port en unitaire.
