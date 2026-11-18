@@ -25,8 +25,8 @@ select columns_are(
   'carnet', 'profiles',
   array['id', 'owner_id', 'slug', 'display_name', 'job_title', 'company', 'bio', 'avatar_url', 'banner_url',
         'theme', 'contact_email', 'phone', 'website_url', 'is_published', 'is_indexable', 'created_at', 'updated_at',
-        'logo_url', 'accepts_leads'],
-  'critère 1 (amendé 0021 : logo_url ; 0031 : accepts_leads) : profiles a exactement les colonnes de la décision 1'
+        'logo_url', 'accepts_leads', 'time_zone'],
+  'critère 1 (amendé 0021 : logo_url ; 0031 : accepts_leads ; 0036 : time_zone) : profiles a exactement les colonnes de la décision 1'
 );
 
 select col_type_is('carnet', 'profiles', 'id', 'uuid', 'critère 1 : profiles.id est uuid');
