@@ -14,6 +14,27 @@ import { createAdminClient } from "@/server/infrastructure/supabase/admin";
 import { makeSupabaseAuthGateway } from "@/server/infrastructure/supabase/auth-gateway";
 import { createPublicSupabaseClient } from "@/server/infrastructure/supabase/public";
 import { createServerSupabaseClient } from "@/server/infrastructure/supabase/server";
+import { makeSupabaseAvailabilityRepository } from "@/server/booking/repositories/supabase-availability-repository";
+import { makeSupabaseEventTypeRepository } from "@/server/booking/repositories/supabase-event-type-repository";
+import {
+  makeAddAvailabilityException,
+  type AddAvailabilityException,
+} from "@/server/booking/use-cases/add-availability-exception";
+import { makeCreateEventType, type CreateEventType } from "@/server/booking/use-cases/create-event-type";
+import { makeDeleteEventType, type DeleteEventType } from "@/server/booking/use-cases/delete-event-type";
+import { makeGetBookingSettings, type GetBookingSettings } from "@/server/booking/use-cases/get-booking-settings";
+import {
+  makeRemoveAvailabilityException,
+  type RemoveAvailabilityException,
+} from "@/server/booking/use-cases/remove-availability-exception";
+import { makeReorderEventTypes, type ReorderEventTypes } from "@/server/booking/use-cases/reorder-event-types";
+import {
+  makeReplaceAvailabilityRules,
+  type ReplaceAvailabilityRules,
+} from "@/server/booking/use-cases/replace-availability-rules";
+import { makeSaveTimeZone, type SaveTimeZone } from "@/server/booking/use-cases/save-time-zone";
+import { makeSetEventTypeActive, type SetEventTypeActive } from "@/server/booking/use-cases/set-event-type-active";
+import { makeUpdateEventType, type UpdateEventType } from "@/server/booking/use-cases/update-event-type";
 import { profileCacheTag } from "@/server/cache-tags";
 import { makeCachedPublicProfileReader } from "@/server/repositories/cached-public-profile-reader";
 import { makeSupabaseEventRecorder } from "@/server/repositories/supabase-event-recorder";
@@ -84,6 +105,16 @@ export type Container = {
   listOwnLeads: ListOwnLeads;
   deleteOwnLead: DeleteOwnLead;
   deleteAccount: DeleteAccount;
+  getBookingSettings: GetBookingSettings;
+  saveTimeZone: SaveTimeZone;
+  createEventType: CreateEventType;
+  updateEventType: UpdateEventType;
+  setEventTypeActive: SetEventTypeActive;
+  reorderEventTypes: ReorderEventTypes;
+  deleteEventType: DeleteEventType;
+  replaceAvailabilityRules: ReplaceAvailabilityRules;
+  addAvailabilityException: AddAvailabilityException;
+  removeAvailabilityException: RemoveAvailabilityException;
   qrPrintReady: boolean;
   auth: AuthGateway;
 };
@@ -144,6 +175,9 @@ export async function createContainer(): Promise<Container> {
   const tags = makeSupabaseNfcTagRepository(server);
   const qrCodes = makeSupabaseQrCodeRepository(server);
   const leads = makeSupabaseLeadRepository(server);
+  const eventTypes = makeSupabaseEventTypeRepository(server);
+  const availability = makeSupabaseAvailabilityRepository(server);
+  const clock = { now: () => new Date() };
 
   return {
     auth,
@@ -186,6 +220,16 @@ export async function createContainer(): Promise<Container> {
       instanceAccounts: makeSupabaseInstanceAccountRemover(admin),
       profileCache: { expire: (slug) => updateTag(profileCacheTag(slug)) },
     }),
+    getBookingSettings: makeGetBookingSettings({ auth, profiles, eventTypes, availability, clock }),
+    saveTimeZone: makeSaveTimeZone({ auth, rateLimiter, profiles, availability }),
+    createEventType: makeCreateEventType({ auth, rateLimiter, profiles, eventTypes }),
+    updateEventType: makeUpdateEventType({ auth, rateLimiter, profiles, eventTypes }),
+    setEventTypeActive: makeSetEventTypeActive({ auth, rateLimiter, profiles, eventTypes }),
+    reorderEventTypes: makeReorderEventTypes({ auth, rateLimiter, profiles, eventTypes }),
+    deleteEventType: makeDeleteEventType({ auth, rateLimiter, profiles, eventTypes }),
+    replaceAvailabilityRules: makeReplaceAvailabilityRules({ auth, rateLimiter, profiles, availability }),
+    addAvailabilityException: makeAddAvailabilityException({ auth, rateLimiter, profiles, availability, clock }),
+    removeAvailabilityException: makeRemoveAvailabilityException({ auth, rateLimiter, profiles, availability }),
     qrPrintReady: env.QR_PRINT_READY,
   };
 }

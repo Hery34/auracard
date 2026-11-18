@@ -33,10 +33,13 @@ const presentationBoundary = {
     ...supabaseImports,
     "@/server/repositories/**",
     "@/server/infrastructure/**",
+    "@/server/booking/repositories/**",
     "**/server/repositories/**",
     "**/server/infrastructure/**",
+    "**/server/booking/repositories/**",
   ],
-  message: "src/app and src/ui import @/server/actions/* and @/server/container only (ADR 0012).",
+  message:
+    "src/app and src/ui import @/server/actions/*, @/server/booking/actions and @/server/container only (ADR 0012).",
 };
 
 // ADR 0011: the service_role client is injected by the composition root, never imported by an adapter.

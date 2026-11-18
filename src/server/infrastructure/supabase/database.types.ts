@@ -495,6 +495,9 @@ isOneToOne: true
 "purge_analytics_events":
 { Args: { "p_older_than": string }; Returns: number
                            },
+"purge_availability_exceptions":
+{ Args: { "p_older_than": string }; Returns: number
+                           },
 "purge_bookings":
 { Args: { "p_older_than": string }; Returns: number
                            },
@@ -525,6 +528,41 @@ isOneToOne: true
 "release_nfc_tag":
 { Args: { "p_tag_id": string }; Returns: boolean
                            },
+"reorder_event_types":
+{ Args: { "p_order": (string)[],"p_profile_id": string }; Returns: {
+              "buffer_min": number,
+"created_at": string,
+"duration_min": number,
+"id": string,
+"is_active": boolean,
+"location_kind": string,
+"location_text": string | null,
+"min_notice_min": number,
+"position": number,
+"profile_id": string,
+"title": string
+            }[]
+                          SetofOptions: {
+        from: "*"
+        to: "event_types"
+        isOneToOne: false
+        isSetofReturn: true
+      } },
+"replace_availability_rules":
+{ Args: { "p_profile_id": string,"p_rules": Json }; Returns: {
+              "created_at": string,
+"end_time": string,
+"id": string,
+"profile_id": string,
+"start_time": string,
+"weekday": number
+            }[]
+                          SetofOptions: {
+        from: "*"
+        to: "availability_rules"
+        isOneToOne: false
+        isSetofReturn: true
+      } },
 "replace_links":
 { Args: { "p_links": Json,"p_profile_id": string }; Returns: {
               "created_at": string,

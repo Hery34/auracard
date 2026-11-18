@@ -6,7 +6,8 @@ export type FakeQueryResponse = { data: unknown; error: FakePostgrestError | nul
 
 export type QueryCall =
   | { readonly kind: "rpc"; readonly fn: string; readonly args: unknown }
-  | { readonly kind: "select"; readonly table: string; readonly columns: string; readonly modifiers: QueryModifier[] };
+  | { readonly kind: "select"; readonly table: string; readonly columns: string; readonly modifiers: QueryModifier[] }
+  | { readonly kind: "insert"; readonly table: string; readonly values: unknown };
 
 /**
  * `await builder` and `await builder.maybeSingle()` / `.single()` both resolve to the scripted response; an array
@@ -39,12 +40,14 @@ export type QueryModifier =
   | { readonly kind: "order"; readonly column: string; readonly options: unknown };
 
 /**
- * Read-only stand-in of a `carnet` client: `rpc(fn, args)` answers `rpc[fn]`, `from(table).select(columns)` answers
- * `tables[table]`, each one awaitable directly or through `.maybeSingle()` / `.single()`. Unknown names throw.
+ * Stand-in of a `carnet` client: `rpc(fn, args)` answers `rpc[fn]`, `from(table).select(columns)` answers
+ * `tables[table]`, `from(table).insert(values).select(columns)` answers `inserts[table]`, each one awaitable directly
+ * or through `.maybeSingle()` / `.single()`. Unknown names throw.
  */
 export function fakeCarnetQueryClient(responses: {
   rpc?: Record<string, FakeQueryResponse>;
   tables?: Record<string, FakeQueryResponse>;
+  inserts?: Record<string, FakeQueryResponse>;
 }): { client: CarnetClient; calls: QueryCall[] } {
   const none: QueryModifier[] = [];
   const calls: QueryCall[] = [];
@@ -67,6 +70,14 @@ export function fakeCarnetQueryClient(responses: {
             throw new Error(`fakeCarnetQueryClient: unexpected table ${table}`);
           }
           return thenable(response, modifiers);
+        },
+        insert(values: unknown) {
+          calls.push({ kind: "insert", table, values });
+          const response = responses.inserts?.[table];
+          if (response === undefined) {
+            throw new Error(`fakeCarnetQueryClient: unexpected insert into ${table}`);
+          }
+          return { select: () => thenable(response, none) };
         },
       };
     },

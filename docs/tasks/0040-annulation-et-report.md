@@ -23,6 +23,7 @@ Le visiteur annule ou reporte son rendez-vous depuis le lien reçu par e-mail (`
 ## Notes héritées de 0036 (revue et audit, 18/11/2026)
 - Au rejeu du report, le jeton renvoyé est null ; les anciens jetons deviennent inopérants après un report.
 - `get_public_busy_ranges` compte la propre réservation du visiteur comme occupée, alors que le SQL l'ignore au report : des créneaux valides seront masqués (acceptable).
+- *Reporté de 0037* : le calcul des créneaux d'un report doit ignorer la réservation reportée (comme `assert_bookable_slot` avec `p_ignore_booking_id`), or `get_public_busy_ranges` ne porte pas d'identifiants : prévoir une lecture par jeton des occupations qui exclut la réservation concernée (db-architect), ou accepter de masquer ces créneaux.
 - Limite de débit par adresse **et** par jeton haché (reports en boucle = e-mails en boucle) ; actions en POST ; `Referrer-Policy: no-referrer` ; aucune journalisation des URL contenant le jeton.
 
 ## Critères d'acceptation

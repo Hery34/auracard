@@ -27,12 +27,15 @@
 --     created_at timestamptz not null default now() ; check start_time < end_time (23514) ; pas de chevauchement de
 --     plages pour un même (profile_id, weekday) : contrainte d'exclusion (23P01) ; plages contiguës autorisées.
 --     Point 17 (23514) : end_time − start_time >= 5 minutes ; start_time et end_time à la minute (ni secondes, ni
---     fraction) ; au plus 50 règles par profil (la 51e refusée).
+--     fraction) ; au plus 50 règles par profil (la 51e refusée en CN004, fiche 0038 point 6).
 --   carnet.availability_exceptions : id uuid pk default gen_random_uuid(), profile_id uuid not null (fk cascade),
 --     range tstzrange not null (non vide, bornes finies, '[)'), kind text not null (busy, extra),
 --     created_at timestamptz not null default now() ; refus 23514.
 --     Point 17 (23514) : bornes à la minute (date_trunc('minute', b) = b) ; au plus 200 exceptions dont la fin est à
---     venir (upper(range) > now()) par profil ; une exception déjà terminée ne compte pas et reste insérable.
+--     venir (upper(range) > now()) par profil (CN004, fiche 0038 point 6 : SQLSTATE dédié « plafond atteint »). Fiche 0038, décision 4 : une exception déjà terminée
+--     (upper(range) <= now()) est refusée à l'insertion et à la modification (23514) ; une exception en cours reste
+--     acceptée. Refus porté par un trigger (now() n'est pas immuable : pas de check), ce qui permet aux tests de poser
+--     des fixtures terminées triggers désactivés.
 --   Point 18 — droits update par colonne (champs métier seulement) pour authenticated ; aucun update de table :
 --     event_types : title, duration_min, buffer_min, min_notice_min, location_kind, location_text, is_active, position ;
 --     availability_rules : weekday, start_time, end_time ; availability_exceptions : range, kind.
@@ -140,7 +143,7 @@ begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
 
-select plan(255);
+select plan(257);
 
 create function pg_temp.txt(p_sql text) returns text
 language plpgsql as $$
@@ -541,7 +544,7 @@ select is(
 select throws_ok(
   $$insert into carnet.availability_rules (profile_id, weekday, start_time, end_time) values
       ('00000000-0000-4000-8000-003610000011', 6, '09:00', '12:00')$$,
-  '23514', null, 'point 17 : 51e règle d''un profil refusée (23514, au plus 50)'
+  'CN004', null, 'fiche 0038 point 6 : 51e règle d''un profil refusée par le trigger de plafond (CN004, au plus 50)'
 );
 select lives_ok(
   $$insert into carnet.availability_rules (profile_id, weekday, start_time, end_time) values
@@ -637,12 +640,25 @@ select is(
 select throws_ok(
   $$insert into carnet.availability_exceptions (profile_id, range, kind) values
       ('00000000-0000-4000-8000-003610000011', tstzrange(date_trunc('minute', now()) + interval '30 days', date_trunc('minute', now()) + interval '30 days 1 hour'), 'extra')$$,
-  '23514', null, 'point 17 : 201e exception à venir d''un profil refusée (23514, au plus 200)'
+  'CN004', null, 'fiche 0038 point 6 : 201e exception à venir d''un profil refusée par le trigger de plafond (CN004, au plus 200)'
+);
+select throws_ok(
+  $$insert into carnet.availability_exceptions (profile_id, range, kind) values
+      ('00000000-0000-4000-8000-003610000010', tstzrange(date_trunc('minute', now()) - interval '3 days', date_trunc('minute', now()) - interval '2 days'), 'busy')$$,
+  '23514', null, 'fiche 0038 décision 4 : une exception déjà terminée (upper(range) <= now()) est refusée à l''insertion (23514)'
+);
+select throws_ok(
+  $$update carnet.availability_exceptions
+       set range = tstzrange(date_trunc('minute', now()) - interval '3 days', date_trunc('minute', now()) - interval '2 days')
+     where id = (select id from carnet.availability_exceptions
+                  where profile_id = '00000000-0000-4000-8000-003610000010' and upper(range) > now()
+                  order by lower(range) limit 1)$$,
+  '23514', null, 'fiche 0038 décision 4 : modifier une exception pour la rendre terminée est refusé (23514)'
 );
 select lives_ok(
   $$insert into carnet.availability_exceptions (profile_id, range, kind) values
-      ('00000000-0000-4000-8000-003610000011', tstzrange(date_trunc('minute', now()) - interval '3 days', date_trunc('minute', now()) - interval '2 days'), 'busy')$$,
-  'point 17 : une exception déjà terminée ne compte pas dans le plafond et reste insérable'
+      ('00000000-0000-4000-8000-003610000010', tstzrange(date_trunc('minute', now()) - interval '1 hour', date_trunc('minute', now()) + interval '1 hour'), 'busy')$$,
+  'fiche 0038 décision 4 : une exception en cours (début passé, fin à venir) reste acceptée'
 );
 select lives_ok(
   $$insert into carnet.availability_exceptions (profile_id, range, kind) values

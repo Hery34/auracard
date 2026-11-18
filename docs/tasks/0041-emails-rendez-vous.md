@@ -22,6 +22,7 @@ n8n envoie, à partir de l'outbox, les e-mails de confirmation, d'annulation, de
 - Colonnes de `claim_booking_outbox` typées non nulles dans `database.types.ts` alors que `previous_booking_id`, `previous_booking_start/end`, `cancelled_by`, `cancel_token`, `visitor_phone`, `visitor_message`, `location_text` peuvent être null.
 - `cancel_token` **jamais** dans l'e-mail au propriétaire (même événement `booking.confirmed` pour les deux messages).
 - Fuseau renvoyé = celui du propriétaire : `.ics` en UTC.
+- *Reporté de l'audit 0038* : `location_text` (texte libre) échappé dans les e-mails et le `.ics` (CRLF neutralisé, pliage RFC 5545) ; lien de visio rendu cliquable seulement s'il est en `https:`.
 - n8n : désactiver ou élaguer la sauvegarde des exécutions réussies (données visiteur, jeton).
 
 ## Critères d'acceptation
