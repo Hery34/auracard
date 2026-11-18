@@ -13,12 +13,12 @@ Reprend l'ADR 0010 intégralement (points 2 à 5 inchangés) et étend la liste 
 | limitation de débit des surfaces publiques (inscription, connexion, puis contact et rendez-vous) | `carnet.consume_rate_limit(p_key, p_limit, p_window) → boolean` : compteur à fenêtre fixe, clé = empreinte SHA-256 salée (secret serveur) de `<portée>:<adresse>`, jamais l'adresse brute | 0009, 0007 |
 | `delete-account` (RGPD) : suppression du compte `auth.users` **seulement s'il n'appartient plus à aucun projet** | `carnet.is_orphan_account(p_user_id) → boolean` puis `auth.admin.deleteUser` (adaptateur dédié) | 0023 |
 | purge des fichiers orphelins de `carnet-media` par n8n (clé dans les identifiants n8n, hors Next.js) | fonction SQL de listage des orphelins + API Storage | 0027 |
-| enregistrement des statistiques (`/t`, `/q`, `/v`, `/api/beacon`), après filtrage des robots et limitation de débit | `carnet.record_event(…)` | 0028, 0029 |
+| enregistrement des statistiques (`/t`, `/q`, `/v`, `/api/beacon`), après filtrage des robots et limitation de débit | `carnet.record_public_event(p_id, p_slug, …)` (résout le slug d'un profil publié ; Hery, 18/11/2026) ; `carnet.record_event(…)` pour les écritures internes | 0028, 0029, 0034 |
 | capture d'un message de visiteur, après Turnstile et limitation de débit | `carnet.capture_lead(…)` | 0031, 0032 |
 | traitement de l'outbox par n8n (hors Next.js) | `carnet.claim_outbox`, `complete_outbox`, `fail_outbox` | 0031, 0033 |
 
 ## Conséquences
-- Mêmes que l'ADR 0010 ; `admin.ts` n'est importé que par `src/server/container.ts`, qui injecte le client admin dans les adaptateurs autorisés (`supabase-profile-registrar.ts`, `supabase-rate-limiter.ts`, `supabase-instance-account-remover.ts`) ; la règle ESLint `no-restricted-imports` le vérifie.
+- Mêmes que l'ADR 0010 ; `admin.ts` n'est importé que par `src/server/container.ts`, qui injecte le client admin dans les adaptateurs autorisés (`supabase-profile-registrar.ts`, `supabase-rate-limiter.ts`, `supabase-instance-account-remover.ts`, `supabase-event-recorder.ts`) ; la règle ESLint `no-restricted-imports` le vérifie.
 - La clé `service_role` est unique pour toute l'instance (un seul `JWT_SECRET`) : sa rotation est une opération d'instance qui touche tous les projets et n8n. Risque hérité de l'ADR 0002, consigné ici.
 - Un rejeu d'action consomme deux unités de quota : voulu (on compte les tentatives), exception à `idempotence.md` documentée.
 - *Précision validée par Hery (17/11/2026, fiche 0024)* : `consume_rate_limit` peut aussi être appelée **depuis une fonction `security definer` de `carnet`** (propriétaire `postgres`, aucun grant supplémentaire). Cas unique : `activate_nfc_tag`, clé `nfc-activate:<uuid du compte>` en clair (identifiant déjà en base, aucune adresse IP), pour que la limite d'essais ne soit pas contournable par PostgREST. La règle « clé = empreinte salée » reste obligatoire pour toute clé dérivée d'une adresse.

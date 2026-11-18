@@ -19,8 +19,20 @@ export function aPublicProfile(overrides: Partial<PublicProfile> = {}): PublicPr
     websiteUrl: "https://atelier-merel.example/",
     isIndexable: false,
     links: [
-      { platform: "linkedin", url: "https://www.linkedin.com/in/elodie-durand-merel", label: null, position: 0 },
-      { platform: "website", url: "https://atelier-merel.example/", label: "Mon atelier", position: 1 },
+      {
+        id: "6a1b2c3d-4e5f-4a6b-8c7d-8e9f0a1b2c3d",
+        platform: "linkedin",
+        url: "https://www.linkedin.com/in/elodie-durand-merel",
+        label: null,
+        position: 0,
+      },
+      {
+        id: "7b2c3d4e-5f6a-4b7c-9d8e-9f0a1b2c3d4e",
+        platform: "website",
+        url: "https://atelier-merel.example/",
+        label: "Mon atelier",
+        position: 1,
+      },
     ],
     ...overrides,
   };

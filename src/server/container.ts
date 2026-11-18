@@ -1,5 +1,6 @@
 import { updateTag } from "next/cache";
 
+import type { ServerEventType } from "@/domain/analytics/analytics-event";
 import { publicMediaUrl } from "@/domain/profile/profile-image";
 import type { Result } from "@/domain/shared/result";
 import type { AuthGateway } from "@/domain/shared/ports/auth-gateway";
@@ -14,6 +15,7 @@ import { createPublicSupabaseClient } from "@/server/infrastructure/supabase/pub
 import { createServerSupabaseClient } from "@/server/infrastructure/supabase/server";
 import { profileCacheTag } from "@/server/cache-tags";
 import { makeCachedPublicProfileReader } from "@/server/repositories/cached-public-profile-reader";
+import { makeSupabaseEventRecorder } from "@/server/repositories/supabase-event-recorder";
 import { makeSupabaseCarnetAccountEraser } from "@/server/repositories/supabase-carnet-account-eraser";
 import { makeSupabaseInstanceAccountRemover } from "@/server/repositories/supabase-instance-account-remover";
 import { makeSupabaseLinkRepository } from "@/server/repositories/supabase-link-repository";
@@ -36,6 +38,12 @@ import { makeGetOwnProfile, type GetOwnProfile } from "@/server/use-cases/get-ow
 import { makeGetOwnQrCode, type GetOwnQrCode } from "@/server/use-cases/get-own-qr-code";
 import { makeGetPublicProfile, type GetPublicProfile } from "@/server/use-cases/get-public-profile";
 import { makeGetVCard, type VCardFile } from "@/server/use-cases/get-vcard";
+import {
+  makeRecordBeaconEvent,
+  makeRecordServerEvent,
+  type BeaconInput,
+  type RecordOutcome,
+} from "@/server/use-cases/record-event";
 import { makeListOwnNfcTags, type ListOwnNfcTags } from "@/server/use-cases/list-own-nfc-tags";
 import { makeRegisterUser, type RegisterUser } from "@/server/use-cases/register-user";
 import { makeReleaseNfcTag, type ReleaseNfcTag } from "@/server/use-cases/release-nfc-tag";
@@ -75,11 +83,27 @@ export const siteUrl: string = env.SITE_URL;
 /** vCard of the route `/v/{slug}`: rate limit `vcard` on the address of the given request headers, then the file. */
 export type DownloadVCardFromRequest = (slug: string, headers: Headers) => Promise<Result<VCardFile | null, RateLimitError>>;
 
+/** Event of `/api/beacon`, as validated by the route; the use case checks it again. */
+export type BeaconEvent = Omit<BeaconInput, "userAgent" | "clientAddress">;
+
+/** User-agent and address read from the given request headers. */
+export type RecordBeaconFromRequest = (
+  event: BeaconEvent,
+  headers: Headers,
+) => Promise<Result<RecordOutcome, "unexpected">>;
+
+export type RecordServerEventFromRequest = (
+  event: { slug: string; type: ServerEventType },
+  headers: Headers,
+) => Promise<Result<RecordOutcome, "unexpected">>;
+
 export type PublicContainer = {
   getPublicProfile: GetPublicProfile;
   downloadVCard: DownloadVCardFromRequest;
   resolveNfcTag: ResolveNfcTag;
   resolveQrCode: ResolveQrCode;
+  recordBeaconEvent: RecordBeaconFromRequest;
+  recordServerEvent: RecordServerEventFromRequest;
 };
 
 /** Composition root, built once per request: the server client carries the request cookies. */
@@ -135,9 +159,14 @@ export async function createContainer(): Promise<Container> {
   };
 }
 
+function visitorOf(headers: Headers): { userAgent: string | null; clientAddress: string } {
+  return { userAgent: headers.get("user-agent"), clientAddress: requestClientAddress(headers) };
+}
+
 /**
  * Composition root of the public reads: no cookies, usable in static rendering. NFC and QR resolutions are read live
- * on every scan (no cache, no rate limit).
+ * on every scan (no cache, no rate limit). The service_role client is created on demand, by the recordings and the
+ * vCard rate limit only.
  */
 export function createPublicContainer(): PublicContainer {
   const anonymous = createPublicSupabaseClient();
@@ -165,5 +194,22 @@ export function createPublicContainer(): PublicContainer {
     },
     resolveNfcTag: makeResolveNfcTag({ tags: makeSupabaseNfcTagResolver(anonymous) }),
     resolveQrCode: makeResolveQrCode({ codes: makeSupabaseQrCodeResolver(anonymous) }),
+    recordBeaconEvent: async (event, headers) => {
+      const admin = createAdminClient();
+      const recordBeaconEvent = makeRecordBeaconEvent({
+        rateLimiter: makeSupabaseRateLimiter(admin, env.RATE_LIMIT_SECRET),
+        events: makeSupabaseEventRecorder(admin),
+      });
+      return recordBeaconEvent({ ...event, ...visitorOf(headers) });
+    },
+    recordServerEvent: async (event, headers) => {
+      const admin = createAdminClient();
+      const recordServerEvent = makeRecordServerEvent({
+        ids: cryptoIdGenerator,
+        rateLimiter: makeSupabaseRateLimiter(admin, env.RATE_LIMIT_SECRET),
+        events: makeSupabaseEventRecorder(admin),
+      });
+      return recordServerEvent({ ...event, ...visitorOf(headers) });
+    },
   };
 }

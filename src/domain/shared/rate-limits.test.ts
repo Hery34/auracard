@@ -27,12 +27,22 @@ describe("RATE_LIMITS", () => {
     expect(RATE_LIMITS["nfc-activate"]).toStrictEqual({ limit: 30, windowSeconds: 3600 });
   });
 
-  it("defines exactly the six scopes signup, login, login-account, profile-write, vcard and nfc-activate", () => {
+  it("beacon: 300 statistics events per address per hour (0029, decision 6)", () => {
+    expect(RATE_LIMITS.beacon).toStrictEqual({ limit: 300, windowSeconds: 3600 });
+  });
+
+  it("scan: 60 server events (/t, /q, /v) per address per hour (0029, decision 9)", () => {
+    expect(RATE_LIMITS.scan).toStrictEqual({ limit: 60, windowSeconds: 3600 });
+  });
+
+  it("defines exactly the eight scopes signup, login, login-account, profile-write, vcard, nfc-activate, beacon and scan", () => {
     expect(Object.keys(RATE_LIMITS).sort()).toStrictEqual([
+      "beacon",
       "login",
       "login-account",
       "nfc-activate",
       "profile-write",
+      "scan",
       "signup",
       "vcard",
     ]);

@@ -4,6 +4,8 @@ import { cache } from "react";
 
 import type { PublicProfile } from "@/domain/profile/profile";
 import { createPublicContainer } from "@/server/container";
+import { AudienceNotice } from "@/ui/features/analytics/audience-notice";
+import { ProfileBeacon } from "@/ui/features/analytics/profile-beacon";
 import { MEDIA_ORIGIN } from "@/ui/features/profile/media-origin";
 import { ProfileCard } from "@/ui/features/profile/profile-card";
 import { toProfileCardView } from "@/ui/features/profile/profile-card-view";
@@ -61,6 +63,8 @@ export default async function PublicProfilePage({ params }: Props) {
   return (
     <main data-theme="system" className="mx-auto w-full max-w-md px-4 py-8">
       <ProfileCard view={toProfileCardView(profile, MEDIA_ORIGIN)} />
+      <AudienceNotice />
+      <ProfileBeacon slug={profile.slug} />
     </main>
   );
 }

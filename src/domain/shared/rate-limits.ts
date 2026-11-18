@@ -1,4 +1,4 @@
-export type RateLimitScope = "signup" | "login" | "login-account" | "profile-write" | "vcard" | "nfc-activate";
+export type RateLimitScope = "signup" | "login" | "login-account" | "profile-write" | "vcard" | "nfc-activate" | "beacon" | "scan";
 
 export type RateLimit = { limit: number; windowSeconds: number };
 
@@ -9,6 +9,8 @@ export const RATE_LIMITS: Readonly<Record<RateLimitScope, RateLimit>> = {
   "profile-write": { limit: 60, windowSeconds: 3600 },
   vcard: { limit: 30, windowSeconds: 3600 },
   "nfc-activate": { limit: 30, windowSeconds: 3600 },
+  beacon: { limit: 300, windowSeconds: 3600 },
+  scan: { limit: 60, windowSeconds: 3600 },
 };
 
 /** Minimal argument of the purge: no window older than this can still be active. */

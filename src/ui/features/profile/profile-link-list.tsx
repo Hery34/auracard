@@ -1,3 +1,4 @@
+import { beaconAttributes, linkTarget } from "@/ui/features/analytics/beacon-target";
 import { ContactReveal } from "@/ui/features/profile/contact-reveal";
 import { PlatformIcon } from "@/ui/features/profile/icons/platform-icon";
 import { LINK_ROW_CLASS } from "@/ui/features/profile/link-row";
@@ -13,11 +14,17 @@ export function ProfileLinkList({ links }: { links: readonly ProfileLinkView[] }
       {links.map((link, index) => (
         <li key={index}>
           {link.kind === "anchor" ? (
-            <a href={link.href} target="_blank" rel="noopener noreferrer nofollow ugc" className={LINK_ROW_CLASS}>
+            <a
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer nofollow ugc"
+              className={LINK_ROW_CLASS}
+              {...beaconAttributes(linkTarget(link.id))}
+            >
               <LinkContent link={link} />
             </a>
           ) : (
-            <ContactReveal contact={link.contact}>
+            <ContactReveal contact={link.contact} beacon={linkTarget(link.id)}>
               <LinkContent link={link} />
             </ContactReveal>
           )}

@@ -1,3 +1,4 @@
+import { CONTACT_TARGET, beaconAttributes } from "@/ui/features/analytics/beacon-target";
 import { ContactReveal } from "@/ui/features/profile/contact-reveal";
 import { InAppBrowserNotice } from "@/ui/features/profile/in-app-browser-notice";
 import { ProfileAvatar } from "@/ui/features/profile/profile-avatar";
@@ -35,12 +36,12 @@ export function ProfileCard({ view }: { view: ProfileCardView }) {
         <ul className="flex flex-col gap-2">
           {view.phone !== null && (
             <li>
-              <ContactReveal contact={view.phone}>Appeler</ContactReveal>
+              <ContactReveal contact={view.phone} beacon={CONTACT_TARGET}>Appeler</ContactReveal>
             </li>
           )}
           {view.email !== null && (
             <li>
-              <ContactReveal contact={view.email}>Écrire un e-mail</ContactReveal>
+              <ContactReveal contact={view.email} beacon={CONTACT_TARGET}>Écrire un e-mail</ContactReveal>
             </li>
           )}
           {view.website !== null && (
@@ -49,6 +50,7 @@ export function ProfileCard({ view }: { view: ProfileCardView }) {
                 href={view.website.href}
                 target="_blank"
                 rel="noopener noreferrer"
+                {...beaconAttributes(CONTACT_TARGET)}
                 className="inline-flex min-h-11 items-center px-1 font-medium text-link underline underline-offset-4 outline-none focus-visible:ring-3 focus-visible:ring-ring"
               >
                 {view.website.host}

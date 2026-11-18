@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { adminClient, type CarnetClient } from "../../integration/setup/clients";
 import ensureSupabaseEnv from "../../integration/setup/supabase-env";
+import { e2eSiteOrigin } from "./site-url";
 
 let client: CarnetClient | undefined;
 
@@ -16,10 +17,7 @@ function admin(): CarnetClient {
 
 /** SITE_URL handed to `pnpm start` by `playwright.config.ts` (same rule): the QR encodes `${SITE_URL}/q/{code}`. */
 export function e2eSiteUrl(): string {
-  if (process.env.SITE_URL) {
-    return new URL(process.env.SITE_URL).origin;
-  }
-  return process.env.E2E_BASE_URL ? new URL(process.env.E2E_BASE_URL).origin : "https://localhost:3000";
+  return e2eSiteOrigin();
 }
 
 /** Style stored for the profile, `null` while no QR exists. */

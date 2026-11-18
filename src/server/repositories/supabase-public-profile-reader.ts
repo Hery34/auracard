@@ -30,12 +30,12 @@ export function makeSupabasePublicProfileReader(client: CarnetClient, mediaOrigi
         return ok(null);
       }
       const publicLinks: PublicLink[] = [];
-      for (const { platform, url, label, position } of links.data) {
+      for (const { id, platform, url, label, position } of links.data) {
         if (!isLinkPlatform(platform)) {
           logInfrastructureError("get_public_links", "unknown_platform");
           return err("unexpected");
         }
-        publicLinks.push({ platform, url, label: label ?? null, position });
+        publicLinks.push({ id, platform, url, label: label ?? null, position });
       }
       const row = profile.data;
       return ok({

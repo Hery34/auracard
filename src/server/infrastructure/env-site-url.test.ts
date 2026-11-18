@@ -31,11 +31,36 @@ describe("SITE_URL (0019)", () => {
   it.each([
     ["absent", undefined],
     ["http", "http://carnet.example"],
-    ["http on localhost", "http://localhost:3000"],
   ])("production: throws when SITE_URL is %s, naming the variable", async (_label, value) => {
     const { parseEnv } = await loadEnvModule();
 
     expect(() => parseEnv(rawEnv({ NODE_ENV: "production", SITE_URL: value }))).toThrow(/SITE_URL/);
+  });
+
+  it.each([
+    ["http://localhost:3000", "http://localhost:3000"],
+    ["http://127.0.0.1:3000", "http://127.0.0.1:3000"],
+  ])("production, local E2E origin (0029): %s accepted → origin %s", async (value, expected) => {
+    const { parseEnv } = await loadEnvModule();
+
+    expect(parseEnv(rawEnv({ NODE_ENV: "production", SITE_URL: value })).SITE_URL).toBe(expected);
+  });
+
+  it.each([
+    "http://carnet.example",
+    "http://localhost.evil.example",
+    "http://evil-localhost:3000",
+    "http://127.0.0.1.evil.example",
+    "http://192.168.1.10",
+    "http://0.0.0.0:3000",
+    "http://[::1]:3000",
+  ])("production, local E2E origin (0029): http with another host %s still refused", async (value) => {
+    const { parseEnv } = await loadEnvModule();
+
+    expect(() => parseEnv(rawEnv({ NODE_ENV: "production", SITE_URL: value }))).toThrow(/SITE_URL/);
+    expect(() => parseEnv(rawEnv({ NODE_ENV: "production", SITE_URL: value }))).toThrow(
+      /https:\/\/ required in production/,
+    );
   });
 
   it.each([

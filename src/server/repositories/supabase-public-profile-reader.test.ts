@@ -9,6 +9,8 @@
  * // mediaOrigin = env.NEXT_PUBLIC_SUPABASE_URL (container). avatar_url, banner_url, logo_url hold object names of
  * // `carnet-media`: each one → publicMediaUrl(mediaOrigin, name); null, or a value refused by the pattern (URL stored
  * // before 0021, traversal…) → null. The rest of the mapping is unchanged (0017).
+ *
+ * 0029 (decision 9) / 0034 (decision 2): get_public_links also returns `id`; PublicLink gains `id: string` (first key).
  */
 import { describe, expect, it } from "vitest";
 
@@ -102,5 +104,32 @@ describe("makeSupabasePublicProfileReader — images (0021)", () => {
     }).getBySlug(aSlug("elodie-durand-merel"));
 
     expect(result.ok && result.value).toMatchObject({ avatarUrl: null, bannerUrl: null, logoUrl: null });
+  });
+});
+
+describe("makeSupabasePublicProfileReader — link ids (0029, decision 9; 0034, decision 2)", () => {
+  const LINKEDIN_ID = "6a1b2c3d-4e5f-4a6b-8c7d-8e9f0a1b2c3d";
+  const WHATSAPP_ID = "7b2c3d4e-5f6a-4b7c-9d8e-9f0a1b2c3d4e";
+
+  it("each public link carries the id returned by get_public_links (target of link_click)", async () => {
+    const { client } = fakeCarnetQueryClient({
+      rpc: {
+        get_public_profile: { data: profileRow({ avatar_url: null, banner_url: null, logo_url: null }), error: null },
+        get_public_links: {
+          data: [
+            { id: LINKEDIN_ID, platform: "linkedin", url: "https://www.linkedin.com/in/elodie", label: null, position: 0 },
+            { id: WHATSAPP_ID, platform: "whatsapp", url: "https://wa.me/33612345678", label: "Écrivez-moi", position: 1 },
+          ],
+          error: null,
+        },
+      },
+    });
+
+    const result = await makeSupabasePublicProfileReader(client, MEDIA_ORIGIN).getBySlug(aSlug("elodie-durand-merel"));
+
+    expect(result.ok && result.value?.links).toStrictEqual([
+      { id: LINKEDIN_ID, platform: "linkedin", url: "https://www.linkedin.com/in/elodie", label: null, position: 0 },
+      { id: WHATSAPP_ID, platform: "whatsapp", url: "https://wa.me/33612345678", label: "Écrivez-moi", position: 1 },
+    ]);
   });
 });

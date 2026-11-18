@@ -112,8 +112,8 @@ describe("toPreviewProfile", () => {
       websiteUrl: null,
       isIndexable: true,
       links: [
-        { platform: "website", url: "https://b.example/", label: null, position: 0 },
-        { platform: "linkedin", url: "https://www.linkedin.com/in/elodie-durand-merel", label: "Profil", position: 1 },
+        { id: "b", platform: "website", url: "https://b.example/", label: null, position: 0 },
+        { id: LINK_IDS[0], platform: "linkedin", url: "https://www.linkedin.com/in/elodie-durand-merel", label: "Profil", position: 1 },
       ],
     });
   });

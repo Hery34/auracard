@@ -12,6 +12,18 @@
  * // Every answer: Cache-Control: private, no-store; X-Robots-Tag: noindex, nofollow; no Set-Cookie.
  *
  * // src/server/container.ts — PublicContainer gains resolveNfcTag: ResolveNfcTag and resolveQrCode: ResolveQrCode.
+ *
+ * Amended by test-engineer (0029, decisions 3 and 8; criteria 1, 3 and 4):
+ * //   ok({ state: "active", slug }) → 307, Location /p/{slug}?s=nfc, and after() receives the recording of
+ * //   createPublicContainer().recordServerEvent({ slug, type: "nfc_scan" }, request.headers) — never awaited before
+ * //   the response; its failure (err, rejection) changes nothing. No recording for activation, not_found, 500.
+ * // src/server/container.ts
+ * export type RecordServerEventFromRequest =
+ *   (event: { slug: string; type: ServerEventType }, headers: Headers) => Promise<Result<RecordOutcome, "unexpected">>;
+ * // PublicContainer gains recordServerEvent: RecordServerEventFromRequest (user-agent read from the headers).
+ *
+ * Amended by test-engineer (0029, point 10): the nfc_scan is recorded only when `Sec-Fetch-Dest` is absent or
+ * "document"; any other destination (image, script, iframe, empty…) → the same 307, after() given nothing to record.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,17 +31,26 @@ import { err, ok } from "@/domain/shared/result";
 import { makeResolveNfcTag } from "@/server/use-cases/resolve-nfc-tag";
 
 import { makeCallLog, type CallLog } from "../../../../../tests/builders/call-log";
+import { makeDeferredWork, settlesBeforeTimeout, type AfterTask, type DeferredWork } from "../../../../../tests/builders/deferred-work";
 import { fakeNfcTagResolver, type NfcResolutionResult } from "../../../../../tests/builders/fake-nfc-tag-resolver";
 import { MALFORMED_TAG_UIDS, TAG_UID } from "../../../../../tests/builders/nfc";
 
 const mocks = vi.hoisted(() => ({
   results: [] as NfcResolutionResult[],
   log: undefined as CallLog | undefined,
+  recordServerEvent: vi.fn(),
+  after: vi.fn(),
+}));
+
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: mocks.after,
 }));
 
 vi.mock("@/server/container", () => ({
   createPublicContainer: () => ({
     resolveNfcTag: makeResolveNfcTag({ tags: fakeNfcTagResolver({ log: mocks.log, results: mocks.results }) }),
+    recordServerEvent: mocks.recordServerEvent,
   }),
 }));
 
@@ -38,8 +59,12 @@ const SLUG = "elodie-durand-merel";
 const NOT_ACTIVE = /Cette carte n['’]est pas active\./;
 
 let route: typeof import("./route");
+let deferred: DeferredWork;
 
 beforeEach(async () => {
+  deferred = makeDeferredWork();
+  mocks.after.mockReset().mockImplementation((task: AfterTask) => deferred.after(task));
+  mocks.recordServerEvent.mockReset().mockResolvedValue(ok("recorded"));
   mocks.log = makeCallLog();
   mocks.results = [ok({ state: "not_found" })];
   route = await import("./route");
@@ -61,13 +86,13 @@ function expectNoStoreNoIndex(response: Response): void {
 }
 
 describe("GET /t/{uid}", () => {
-  it("criterion 1: tag assigned to a published profile → 307 to /p/{slug}", async () => {
+  it("criterion 1: tag assigned to a published profile → 307 to /p/{slug}?s=nfc (0029, decision 3)", async () => {
     mocks.results = [ok({ state: "active", slug: SLUG })];
 
     const response = await get(TAG_UID);
 
     expect(response.status).toBe(307);
-    expect(locationPath(response)).toBe(`/p/${SLUG}`);
+    expect(locationPath(response)).toBe(`/p/${SLUG}?s=nfc`);
     expectNoStoreNoIndex(response);
     expect(mocks.log?.inputsOf("nfcTags", "resolve")).toStrictEqual([TAG_UID]);
   });
@@ -131,7 +156,7 @@ describe("GET /t/{uid}", () => {
     ["another host", "https://evil.example"],
   ])("decision 13: request URL on %s → Location exactly relative, for both redirections", async (_label, origin) => {
     for (const [resolution, expected] of [
-      [{ state: "active", slug: SLUG }, `/p/${SLUG}`],
+      [{ state: "active", slug: SLUG }, `/p/${SLUG}?s=nfc`],
       [{ state: "activation" }, `/activer/${TAG_UID}`],
     ] as const) {
       mocks.results = [ok(resolution)];
@@ -151,6 +176,105 @@ describe("GET /t/{uid}", () => {
 
     const response = await route.GET(request, { params: Promise.resolve({ uid: TAG_UID }) });
 
-    expect(response.headers.get("location")).toBe(`/p/${SLUG}`);
+    expect(response.headers.get("location")).toBe(`/p/${SLUG}?s=nfc`);
+  });
+});
+
+describe("GET /t/{uid} — nfc_scan (0029)", () => {
+  const SAFARI = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1";
+
+  function scanRequest(headers: Record<string, string> = {}): Request {
+    return new Request(`${ORIGIN}/t/${TAG_UID}`, {
+      headers: { "user-agent": SAFARI, "x-forwarded-for": "203.0.113.5", ...headers },
+    });
+  }
+
+  it("decision 3 / criterion 1: active tag → after() records nfc_scan for the slug with the request headers", async () => {
+    mocks.results = [ok({ state: "active", slug: SLUG })];
+
+    const response = await route.GET(scanRequest(), { params: Promise.resolve({ uid: TAG_UID }) });
+    await deferred.flush();
+
+    expect(response.status).toBe(307);
+    expect(mocks.after).toHaveBeenCalledTimes(1);
+    expect(mocks.recordServerEvent).toHaveBeenCalledTimes(1);
+    const [event, headers] = mocks.recordServerEvent.mock.calls[0] as [unknown, Headers];
+    expect(event).toStrictEqual({ slug: SLUG, type: "nfc_scan" });
+    expect(headers.get("user-agent")).toBe(SAFARI);
+    expect(deferred.failures).toStrictEqual([]);
+  });
+
+  it("decision 3: the redirection never waits for the recording (pending write → response already there)", async () => {
+    mocks.results = [ok({ state: "active", slug: SLUG })];
+    mocks.recordServerEvent.mockImplementation(() => new Promise(() => undefined));
+
+    const response = await settlesBeforeTimeout(route.GET(scanRequest(), { params: Promise.resolve({ uid: TAG_UID }) }));
+
+    expect(response).not.toBe("pending");
+    expect((response as Response).status).toBe(307);
+  });
+
+  it.each([
+    ["err('unexpected')", () => Promise.resolve(err("unexpected"))],
+    ["a rejected promise", () => Promise.reject(new Error("database down"))],
+  ])("criterion 4: the recording answers %s → the same 307 to /p/{slug}?s=nfc", async (_label, behaviour) => {
+    mocks.results = [ok({ state: "active", slug: SLUG })];
+    mocks.recordServerEvent.mockImplementation(behaviour);
+
+    const response = await route.GET(scanRequest(), { params: Promise.resolve({ uid: TAG_UID }) });
+    await deferred.flush();
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(`/p/${SLUG}?s=nfc`);
+    expectNoStoreNoIndex(response);
+  });
+
+  it.each([
+    ["tag in stock (activation)", ok({ state: "activation" } as const)],
+    ["not_found", ok({ state: "not_found" } as const)],
+    ["database failure", err("unexpected" as const)],
+  ])("decision 3: %s → no event recorded", async (_label, result) => {
+    mocks.results = [result];
+
+    await route.GET(scanRequest(), { params: Promise.resolve({ uid: TAG_UID }) });
+    await deferred.flush();
+
+    expect(mocks.recordServerEvent).not.toHaveBeenCalled();
+  });
+
+  it("decision 3: a malformed uid records nothing", async () => {
+    await get("../admin");
+    await deferred.flush();
+
+    expect(mocks.recordServerEvent).not.toHaveBeenCalled();
+  });
+  it.each(["image", "script", "iframe", "embed", "object", "empty"])(
+    "point 10: Sec-Fetch-Dest: %s (embedded in a third-party page) → the same 307, no nfc_scan recorded",
+    async (destination) => {
+      mocks.results = [ok({ state: "active", slug: SLUG })];
+
+      const response = await route.GET(scanRequest({ "sec-fetch-dest": destination }), { params: Promise.resolve({ uid: TAG_UID }) });
+      await deferred.flush();
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(`/p/${SLUG}?s=nfc`);
+      expectNoStoreNoIndex(response);
+      expect(mocks.recordServerEvent).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["Sec-Fetch-Dest: document (a scan opened by the phone)", { "sec-fetch-dest": "document" }],
+    ["no Sec-Fetch-Dest (non-regression)", {}],
+  ])("point 10: %s → the same 307, nfc_scan recorded", async (_label, headers: Record<string, string>) => {
+    mocks.results = [ok({ state: "active", slug: SLUG })];
+
+    const response = await route.GET(scanRequest(headers), { params: Promise.resolve({ uid: TAG_UID }) });
+    await deferred.flush();
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(`/p/${SLUG}?s=nfc`);
+    expect(mocks.recordServerEvent).toHaveBeenCalledTimes(1);
+    expect(mocks.recordServerEvent.mock.calls[0]?.[0]).toStrictEqual({ slug: SLUG, type: "nfc_scan" });
   });
 });

@@ -8,6 +8,7 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
 import { createProfile } from "./helpers/public-profile";
+import { e2eSiteOrigin } from "./helpers/site-url";
 
 const THEME = /^#0a0a0c$/i;
 const PAGES = ["/", "/connexion"] as const;
@@ -21,9 +22,7 @@ const ICONS = [
 const MANIFEST = { path: "/manifest.webmanifest", contentType: /^application\/manifest\+json\b/i } as const;
 const OPEN_GRAPH = { path: "/opengraph-image.png", contentType: /^image\/png\b/i, width: 1200, height: 630 } as const;
 /** Same value as the SITE_URL handed to `pnpm start` by playwright.config.ts. */
-const SITE_ORIGIN = new URL(
-  process.env.SITE_URL ?? (process.env.E2E_BASE_URL ? new URL(process.env.E2E_BASE_URL).origin : "https://localhost:3000"),
-).origin;
+const SITE_ORIGIN = e2eSiteOrigin();
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 type HeadLink = { rel: string; pathname: string; href: string };

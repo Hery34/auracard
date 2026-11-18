@@ -24,7 +24,7 @@ export type ProfileUpdate = {
   isIndexable: boolean;
 };
 
-export type PublicLink = { platform: LinkPlatform; url: string; label: string | null; position: number };
+export type PublicLink = { id: string; platform: LinkPlatform; url: string; label: string | null; position: number };
 
 /** Published profile as the public page and the vCard show it; links sorted by position. */
 export type PublicProfile = {
