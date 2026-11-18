@@ -3,9 +3,10 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 
 import type { PublicProfile } from "@/domain/profile/profile";
-import { createPublicContainer } from "@/server/container";
+import { createPublicContainer, turnstileSiteKey } from "@/server/container";
 import { AudienceNotice } from "@/ui/features/analytics/audience-notice";
 import { ProfileBeacon } from "@/ui/features/analytics/profile-beacon";
+import { LeadSection } from "@/ui/features/lead/lead-section";
 import { MEDIA_ORIGIN } from "@/ui/features/profile/media-origin";
 import { ProfileCard } from "@/ui/features/profile/profile-card";
 import { toProfileCardView } from "@/ui/features/profile/profile-card-view";
@@ -63,6 +64,7 @@ export default async function PublicProfilePage({ params }: Props) {
   return (
     <main data-theme="system" className="mx-auto w-full max-w-md px-4 py-8">
       <ProfileCard view={toProfileCardView(profile, MEDIA_ORIGIN)} />
+      {profile.acceptsLeads && <LeadSection slug={profile.slug} ownerName={profile.displayName} siteKey={turnstileSiteKey} />}
       <AudienceNotice />
       <ProfileBeacon slug={profile.slug} />
     </main>

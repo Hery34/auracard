@@ -15,6 +15,8 @@ export type ProfileFields = {
   website_url: string | null;
   is_published: boolean;
   is_indexable: boolean;
+  /** 0032: « Recevoir des messages » (default true). */
+  accepts_leads: boolean;
 };
 
 export type LinkFixture = { platform: LinkPlatform; url: string; label: string | null };
@@ -36,6 +38,7 @@ export const FULL_PROFILE: ProfileFields = {
   website_url: "https://elodie-durand.example/",
   is_published: true,
   is_indexable: false,
+  accepts_leads: true,
 };
 
 export const FULL_PROFILE_INITIALS = "ED";

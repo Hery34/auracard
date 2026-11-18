@@ -31,6 +31,7 @@ export type OwnProfile = {
   websiteUrl: string | null;
   isPublished: boolean;
   isIndexable: boolean;
+  acceptsLeads: boolean;
   avatarUrl: string | null;
   bannerUrl: string | null;
   logoUrl: string | null;

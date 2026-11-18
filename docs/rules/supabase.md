@@ -35,6 +35,6 @@ L'instance partagée fixe `PGRST_DB_MAX_ROWS` = 100 (fiche 0005, point 4) ; la p
 
 - Toute lecture par lignes dont le résultat peut dépasser 100 lignes passe par une fonction SQL qui renvoie **une seule valeur `jsonb`** (`security invoker`, filtrée sur une clé indexée, plage bornée), ou par une pagination couverte par un test au-delà de 100 lignes.
 - Une liste bornée par construction (ex. `links` : 12 au plus) peut rester une lecture directe ; la borne est citée en commentaire dans le dépôt.
-- Les fonctions renvoyant `setof` sont soumises à la même limite.
+- Les fonctions renvoyant `setof` sont soumises à la même limite.   
 
 

@@ -7,6 +7,7 @@
  *   displayName: string; jobTitle: string | null; company: string | null; bio: string | null;
  *   contactEmail: string | null; phone: Phone | null; websiteUrl: HttpsUrl | null;
  *   isPublished: boolean; isIndexable: boolean;
+ *   acceptsLeads: boolean;                         // 0032: « Recevoir des messages » (carnet.profiles.accepts_leads)
  * };
  *
  * // src/server/actions/profile-schemas.ts
@@ -18,7 +19,7 @@
  * //   U+007F–U+009F, U+00AD, U+061C, U+180E, U+200B, U+200E, U+200F, U+2028–U+202E, U+2060–U+2064, U+2066–U+2069, U+FEFF)
  * //   except \n and \r; U+200C and U+200D allowed; 0020 decision 11: \r\n and lone \r normalized to \n before the bound;
  * //   contactEmail: trim, blank → null, e-mail, ≤ 254; phone: trim, blank → null, parsePhone;
- * //   websiteUrl: trim, blank → null, parseHttpsUrl (stored href); isPublished, isIndexable: "on" → true, absent → false, anything else refused;
+ * //   websiteUrl: trim, blank → null, parseHttpsUrl (stored href); isPublished, isIndexable, acceptsLeads (0032): "on" → true, absent → false, anything else refused;
  * //   unknown keys (slug, id, owner_id…) stripped.
  * export const updateProfileSchema: z.ZodType<ProfileUpdate, Record<string, string | undefined>>;
  * // Input: { links: unknown } (the action JSON-parses the `links` form field). Output: { links: Link[] }.
@@ -54,6 +55,7 @@ const validProfileForm = {
   websiteUrl: " HTTPS://Atelier-Merel.example ",
   isPublished: "on",
   isIndexable: "on",
+  acceptsLeads: "on",
 };
 
 function parsedProfile(form: Record<string, string | undefined>): ProfileUpdate {
@@ -111,10 +113,11 @@ describe("updateProfileSchema", () => {
       websiteUrl: "https://atelier-merel.example/",
       isPublished: true,
       isIndexable: true,
+      acceptsLeads: true,
     });
   });
 
-  it("full update: a form with the display name only gives null fields and both switches off", () => {
+  it("full update: a form with the display name only gives null fields and every switch off", () => {
     expect(parsedProfile({ displayName: "Élodie" })).toStrictEqual({
       displayName: "Élodie",
       jobTitle: null,
@@ -125,6 +128,7 @@ describe("updateProfileSchema", () => {
       websiteUrl: null,
       isPublished: false,
       isIndexable: false,
+      acceptsLeads: false,
     });
   });
 
@@ -153,6 +157,7 @@ describe("updateProfileSchema", () => {
     const update = parsedProfile({ ...validProfileForm, slug: "another-slug", id: LINK_IDS[0], owner_id: LINK_IDS[1] });
 
     expect(Object.keys(update).sort()).toStrictEqual([
+      "acceptsLeads",
       "bio",
       "company",
       "contactEmail",
@@ -218,6 +223,7 @@ describe("updateProfileSchema", () => {
     ["a website with an inner space", { ...validProfileForm, websiteUrl: "https://atelier-merel.example/a b" }],
     ["isPublished with a value other than 'on'", { ...validProfileForm, isPublished: "yes" }],
     ["isIndexable with a value other than 'on'", { ...validProfileForm, isIndexable: "false" }],
+    ["acceptsLeads with a value other than 'on' (0032)", { ...validProfileForm, acceptsLeads: "true" }],
   ])("criterion 1 (invalid input): refuses %s", (_label, form) => {
     expect(refusesProfile(form)).toBe(true);
   });

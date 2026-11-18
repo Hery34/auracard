@@ -14,7 +14,7 @@ type Props = {
   onChange: <K extends keyof EditorFields>(name: K, value: EditorFields[K]) => void;
 };
 
-/** The profile's own fields, in display order, then the two switches. */
+/** The profile's own fields, in display order, then the switches. */
 export function ProfileFields({ fields, errors, onChange }: Props) {
   const text = (name: TextFieldName) => ({
     name,
@@ -45,6 +45,12 @@ export function ProfileFields({ fields, errors, onChange }: Props) {
         label="Visible dans les moteurs de recherche"
         checked={fields.isIndexable}
         onChange={(value) => onChange("isIndexable", value)}
+      />
+      <SwitchField
+        name="acceptsLeads"
+        label="Recevoir des messages"
+        checked={fields.acceptsLeads}
+        onChange={(value) => onChange("acceptsLeads", value)}
       />
     </div>
   );

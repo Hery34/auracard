@@ -21,6 +21,7 @@ export function makeSupabaseProfileWriter(server: CarnetClient): ProfileWriter {
           website_url: update.websiteUrl,
           is_published: update.isPublished,
           is_indexable: update.isIndexable,
+          accepts_leads: update.acceptsLeads,
         })
         .eq("id", profileId)
         .select("id");

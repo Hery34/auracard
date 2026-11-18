@@ -12,6 +12,9 @@ export function toProfileFormData(fields: EditorFields): FormData {
   if (fields.isIndexable) {
     data.set("isIndexable", "on");
   }
+  if (fields.acceptsLeads) {
+    data.set("acceptsLeads", "on");
+  }
   return data;
 }
 

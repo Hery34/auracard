@@ -8,6 +8,9 @@
  * export function makeSupabaseProfileReader(server: CarnetClient, mediaOrigin: string): ProfileReader;
  * // select of carnet.profiles under RLS, now with avatar_url, banner_url, logo_url; each object name →
  * // publicMediaUrl(mediaOrigin, name); null or refused by the pattern → null. Other fields unchanged (0017).
+ *
+ * 0032 (decision 1, « Recevoir des messages »): OwnProfile gains `acceptsLeads: boolean` (after isIndexable), read from
+ * accepts_leads.
  */
 import { describe, expect, it } from "vitest";
 
@@ -37,6 +40,7 @@ function ownRow(images: { avatar_url: string | null; banner_url: string | null; 
     website_url: null,
     is_published: false,
     is_indexable: false,
+    accepts_leads: true,
     ...images,
   };
 }
@@ -75,5 +79,20 @@ describe("makeSupabaseProfileReader — images (0021)", () => {
     const { reader } = readerReturning({ avatar_url: null, banner_url: "https://cdn.example/b.jpg", logo_url: null });
 
     expect(await reader.getOwn()).toStrictEqual(ok(anOwnProfile()));
+  });
+});
+
+describe("makeSupabaseProfileReader — accepts_leads (0032)", () => {
+  it("decision 1: selects accepts_leads and maps it to acceptsLeads", async () => {
+    const fake = fakeCarnetQueryClient({
+      tables: { profiles: { data: { ...ownRow({ avatar_url: null, banner_url: null, logo_url: null }), accepts_leads: false }, error: null } },
+    });
+
+    const result = await makeSupabaseProfileReader(fake.client, MEDIA_ORIGIN).getOwn();
+
+    expect(result).toStrictEqual(ok(anOwnProfile({ acceptsLeads: false })));
+    const select = fake.calls.find((call) => call.kind === "select");
+    const columns = select?.kind === "select" ? select.columns.split(",").map((column) => column.trim()) : [];
+    expect(columns).toContain("accepts_leads");
   });
 });

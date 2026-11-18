@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { rawEnv, stubValidEnv } from "../../../tests/builders/env";
+import { PRODUCTION_LIKE_TURNSTILE_KEYS, rawEnv, stubValidEnv } from "../../../tests/builders/env";
 
 async function loadEnvModule(): Promise<typeof import("@/server/infrastructure/env")> {
   vi.resetModules();
@@ -25,7 +25,7 @@ describe("SITE_URL (0019)", () => {
   ])("production: %s → origin %s", async (value, expected) => {
     const { parseEnv } = await loadEnvModule();
 
-    expect(parseEnv(rawEnv({ NODE_ENV: "production", SITE_URL: value })).SITE_URL).toBe(expected);
+    expect(parseEnv(rawEnv({ NODE_ENV: "production", SITE_URL: value, ...PRODUCTION_LIKE_TURNSTILE_KEYS })).SITE_URL).toBe(expected);
   });
 
   it.each([

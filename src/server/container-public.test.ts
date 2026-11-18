@@ -164,8 +164,9 @@ beforeEach(() => {
 });
 
 describe("createPublicContainer — wiring", () => {
-  it("decision 7, 0025, 0029: exposes getPublicProfile, downloadVCard, resolveNfcTag, resolveQrCode, recordBeaconEvent and recordServerEvent only", () => {
+  it("decision 7, 0025, 0029, 0032: exposes getPublicProfile, downloadVCard, resolveNfcTag, resolveQrCode, recordBeaconEvent, recordServerEvent and captureLead only", () => {
     expect(Object.keys(createPublicContainer()).sort()).toStrictEqual([
+      "captureLead",
       "downloadVCard",
       "getPublicProfile",
       "recordBeaconEvent",

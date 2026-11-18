@@ -21,6 +21,8 @@ export type OwnProfile = {
   websiteUrl: string | null;
   isPublished: boolean;
   isIndexable: boolean;
+  /** 0032: `carnet.profiles.accepts_leads` (default true). */
+  acceptsLeads: boolean;
   avatarUrl: string | null;
   bannerUrl: string | null;
   logoUrl: string | null;
@@ -28,7 +30,7 @@ export type OwnProfile = {
 
 export type OwnProfileResult = Result<OwnProfile | null, "unexpected">;
 
-/** Defaults to the profile as `register_member` creates it: display name and slug only, unpublished, no image. */
+/** Defaults to the profile as `register_member` creates it: display name and slug only, unpublished, no image, accepting messages (0031 default). */
 export function anOwnProfile(overrides: Partial<OwnProfile> = {}): OwnProfile {
   return {
     id: PROFILE_ID,
@@ -42,6 +44,7 @@ export function anOwnProfile(overrides: Partial<OwnProfile> = {}): OwnProfile {
     websiteUrl: null,
     isPublished: false,
     isIndexable: false,
+    acceptsLeads: true,
     avatarUrl: null,
     bannerUrl: null,
     logoUrl: null,

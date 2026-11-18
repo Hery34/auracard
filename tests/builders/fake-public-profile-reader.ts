@@ -18,6 +18,7 @@ export function aPublicProfile(overrides: Partial<PublicProfile> = {}): PublicPr
     phone: null,
     websiteUrl: "https://atelier-merel.example/",
     isIndexable: false,
+    acceptsLeads: true,
     links: [
       {
         id: "6a1b2c3d-4e5f-4a6b-8c7d-8e9f0a1b2c3d",

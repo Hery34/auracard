@@ -49,20 +49,45 @@ const baseURL = e2eBaseUrl();
  */
 const siteUrl = process.env.SITE_URL ?? (baseURL ? new URL(baseURL).origin : "http://localhost:3000");
 
+/**
+ * Cloudflare Turnstile test keys (0032, decision 6), never the production ones: visible widget that always passes,
+ * secret that always accepts. The second server shares the build and refuses every token (refusal scenarios).
+ */
+const TURNSTILE_TEST_KEYS = {
+  TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
+  TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
+};
+const TURNSTILE_REFUSING_SECRET_KEY = "2x0000000000000000000000000000000AA";
+const REFUSING_PORT = 3001;
+
 export default defineConfig({
   testDir: "tests/e2e",
   forbidOnly: !!process.env.CI,
-  ...(baseURL ? { use: { baseURL, ignoreHTTPSErrors: true } } : {}),
+  use: baseURL ? { baseURL, ignoreHTTPSErrors: true } : { baseURL: "http://localhost:3000" },
   // The teardown deletes the e2e-* accounts through the admin client: useless in CI, the stack is discarded with the job.
   ...(process.env.CI ? {} : { globalTeardown: "tests/e2e/global-teardown.ts" }),
   projects: [
     { name: "ios-webkit", use: { ...devices["iPhone 15"] } },
     { name: "android-chromium", use: { ...devices["Pixel 7"] } },
   ],
-  webServer: {
-    command: "pnpm start",
-    ...(baseURL ? { url: baseURL, ignoreHTTPSErrors: true } : { port: 3000 }),
-    reuseExistingServer: !process.env.CI,
-    env: { ...webServerEnv(), SITE_URL: siteUrl },
-  },
+  webServer: [
+    {
+      command: "pnpm start",
+      ...(baseURL ? { url: baseURL, ignoreHTTPSErrors: true } : { port: 3000 }),
+      reuseExistingServer: !process.env.CI,
+      env: { ...webServerEnv(), ...TURNSTILE_TEST_KEYS, SITE_URL: siteUrl },
+    },
+    {
+      command: "pnpm start",
+      port: REFUSING_PORT,
+      reuseExistingServer: false,
+      env: {
+        ...webServerEnv(),
+        ...TURNSTILE_TEST_KEYS,
+        TURNSTILE_SECRET_KEY: TURNSTILE_REFUSING_SECRET_KEY,
+        PORT: String(REFUSING_PORT),
+        SITE_URL: `http://localhost:${REFUSING_PORT}`,
+      },
+    },
+  ],
 });

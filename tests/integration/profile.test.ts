@@ -38,7 +38,7 @@ import { createMember, createOutsider } from "./setup/members";
 const MEDIA_ORIGIN = "http://127.0.0.1:54321";
 
 const PROFILE_COLUMNS =
-  "slug, display_name, job_title, company, bio, contact_email, phone, website_url, is_published, is_indexable";
+  "slug, display_name, job_title, company, bio, contact_email, phone, website_url, is_published, is_indexable, accepts_leads";
 
 function rowOf(slug: string, update: ProfileUpdate) {
   return {
@@ -52,6 +52,7 @@ function rowOf(slug: string, update: ProfileUpdate) {
     website_url: update.websiteUrl,
     is_published: update.isPublished,
     is_indexable: update.isIndexable,
+    accepts_leads: update.acceptsLeads,
   };
 }
 
@@ -345,6 +346,7 @@ describe("profile writes and public read against the local Supabase stack", () =
             websiteUrl: null,
             isPublished: false,
             isIndexable: false,
+            acceptsLeads: true,
             avatarUrl: null,
             bannerUrl: null,
             logoUrl: null,
@@ -380,6 +382,7 @@ describe("profile writes and public read against the local Supabase stack", () =
             websiteUrl: update.websiteUrl,
             isPublished: true,
             isIndexable: true,
+            acceptsLeads: update.acceptsLeads,
             avatarUrl: null,
             bannerUrl: null,
             logoUrl: null,
@@ -476,6 +479,7 @@ describe("profile writes and public read against the local Supabase stack", () =
           phone: update.phone,
           websiteUrl: update.websiteUrl,
           isIndexable: false,
+          acceptsLeads: true,
           links: [
             { id: websiteId, platform: "website", url: "https://atelier-merel.example/", label: "Atelier", position: 0 },
             { id: linkedinId, platform: "linkedin", url: "https://www.linkedin.com/in/elodie-durand-merel", label: null, position: 1 },

@@ -5,7 +5,7 @@ import { logInfrastructureError } from "@/server/infrastructure/logger";
 import type { CarnetClient } from "@/server/infrastructure/supabase/carnet-client";
 
 const OWN_PROFILE_COLUMNS =
-  "id, slug, display_name, job_title, company, bio, contact_email, phone, website_url, is_published, is_indexable, avatar_url, banner_url, logo_url";
+  "id, slug, display_name, job_title, company, bio, contact_email, phone, website_url, is_published, is_indexable, accepts_leads, avatar_url, banner_url, logo_url";
 
 /**
  * `carnet.profiles` under the session of the server client: RLS `profiles_select_own` leaves at most the caller's row.
@@ -34,6 +34,7 @@ export function makeSupabaseProfileReader(server: CarnetClient, mediaOrigin: str
         websiteUrl: data.website_url,
         isPublished: data.is_published,
         isIndexable: data.is_indexable,
+        acceptsLeads: data.accepts_leads,
         avatarUrl: publicMediaUrl(mediaOrigin, data.avatar_url),
         bannerUrl: publicMediaUrl(mediaOrigin, data.banner_url),
         logoUrl: publicMediaUrl(mediaOrigin, data.logo_url),

@@ -11,6 +11,9 @@
  * // before 0021, traversal…) → null. The rest of the mapping is unchanged (0017).
  *
  * 0029 (decision 9) / 0034 (decision 2): get_public_links also returns `id`; PublicLink gains `id: string` (first key).
+ *
+ * 0032 (decision 1): PublicProfile gains `acceptsLeads: boolean` (after isIndexable), from the accepts_leads column of
+ * get_public_profile (0031, decision 10); anything but true (null) → false: no form shown.
  */
 import { describe, expect, it } from "vitest";
 
@@ -39,6 +42,7 @@ function profileRow(images: { avatar_url: string | null; banner_url: string | nu
     phone: null,
     website_url: null,
     is_indexable: false,
+    accepts_leads: true,
     ...images,
   };
 }
@@ -73,6 +77,7 @@ describe("makeSupabasePublicProfileReader — images (0021)", () => {
         phone: null,
         websiteUrl: null,
         isIndexable: false,
+        acceptsLeads: true,
         links: [],
       }),
     );
@@ -131,5 +136,24 @@ describe("makeSupabasePublicProfileReader — link ids (0029, decision 9; 0034, 
       { id: LINKEDIN_ID, platform: "linkedin", url: "https://www.linkedin.com/in/elodie", label: null, position: 0 },
       { id: WHATSAPP_ID, platform: "whatsapp", url: "https://wa.me/33612345678", label: "Écrivez-moi", position: 1 },
     ]);
+  });
+});
+
+describe("makeSupabasePublicProfileReader — accepts_leads (0032)", () => {
+  it.each([
+    [true, true],
+    [false, false],
+    [null, false],
+  ])("decision 1: accepts_leads %s → acceptsLeads %s (the public page shows the form only when true)", async (stored, expected) => {
+    const { client } = fakeCarnetQueryClient({
+      rpc: {
+        get_public_profile: { data: { ...profileRow({ avatar_url: null, banner_url: null, logo_url: null }), accepts_leads: stored }, error: null },
+        get_public_links: { data: [], error: null },
+      },
+    });
+
+    const result = await makeSupabasePublicProfileReader(client, MEDIA_ORIGIN).getBySlug(aSlug("elodie-durand-merel"));
+
+    expect(result.ok && result.value?.acceptsLeads).toBe(expected);
   });
 });

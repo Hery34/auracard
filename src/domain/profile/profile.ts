@@ -22,6 +22,7 @@ export type ProfileUpdate = {
   websiteUrl: HttpsUrl | null;
   isPublished: boolean;
   isIndexable: boolean;
+  acceptsLeads: boolean;
 };
 
 export type PublicLink = { id: string; platform: LinkPlatform; url: string; label: string | null; position: number };
@@ -40,5 +41,6 @@ export type PublicProfile = {
   phone: string | null;
   websiteUrl: string | null;
   isIndexable: boolean;
+  acceptsLeads: boolean;
   links: PublicLink[];
 };

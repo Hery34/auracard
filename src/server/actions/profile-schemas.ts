@@ -1,17 +1,12 @@
 import { z } from "zod";
 
 import { HTTPS_URL_MAX_LENGTH, parseHttpsUrl, type HttpsUrl } from "@/domain/profile/https-url";
-import {
-  FORBIDDEN_LABEL_CHARACTERS,
-  LINK_LABEL_MAX_LENGTH,
-  LINK_PLATFORMS,
-  MAX_LINKS,
-  parseLink,
-} from "@/domain/profile/link";
+import { LINK_LABEL_MAX_LENGTH, LINK_PLATFORMS, MAX_LINKS, parseLink } from "@/domain/profile/link";
 import { parsePhone, PHONE_MAX_LENGTH } from "@/domain/profile/phone";
 import { PROFILE_TEXT_MAX_LENGTH } from "@/domain/profile/profile";
 import { ok, type Result } from "@/domain/shared/result";
 import { registerSchema } from "@/server/actions/auth-schemas";
+import { multilineText } from "@/server/actions/multiline-text";
 import { SINGLE_LINE_TEXT } from "@/server/actions/single-line-text";
 
 export { HTTPS_URL_MAX_LENGTH, LINK_LABEL_MAX_LENGTH, LINK_PLATFORMS, MAX_LINKS, PHONE_MAX_LENGTH, PROFILE_TEXT_MAX_LENGTH };
@@ -61,22 +56,13 @@ export const updateProfileSchema = z.object({
   displayName: displayNameSchema,
   jobTitle: optional(singleLine(PROFILE_TEXT_MAX_LENGTH.jobTitle)),
   company: optional(singleLine(PROFILE_TEXT_MAX_LENGTH.company)),
-  bio: optional(
-    z
-      .string()
-      .transform((text) => text.replace(/\r\n?/g, "\n"))
-      .pipe(
-        z
-          .string()
-          .max(PROFILE_TEXT_MAX_LENGTH.bio)
-          .refine((text) => !FORBIDDEN_LABEL_CHARACTERS.test(text.replace(/\n/g, ""))),
-      ),
-  ),
+  bio: optional(multilineText(PROFILE_TEXT_MAX_LENGTH.bio)),
   contactEmail: optional(z.email().max(PROFILE_TEXT_MAX_LENGTH.contactEmail)),
   phone: optional(parsedWith(parsePhone)),
   websiteUrl: optional(parsedWith(parseWebsiteUrl)),
   isPublished: switchSchema,
   isIndexable: switchSchema,
+  acceptsLeads: switchSchema,
 });
 
 const linkSchema = z
