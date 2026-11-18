@@ -21,9 +21,9 @@ import { expectNoStoreNoIndex } from "./helpers/vcard";
  * Contrat de balisage de la fiche 0025, figé par ces tests :
  *
  * Redirections (route handlers)
- * - `/t/{uid}` : puce active d'un profil publié → 307 vers `/p/{slug}` ; puce en stock → 307 vers `/activer/{uid}` ;
+ * - `/t/{uid}` : puce active d'un profil publié → 307 vers `/p/{slug}?s=nfc` (0029) ; puce en stock → 307 vers `/activer/{uid}` ;
  *   sinon 404, page HTML française contenant « Cette carte n'est pas active. », identique quelle que soit la cause.
- * - `/q/{code}` : même chose (307 vers `/p/{slug}` ou la même page 404).
+ * - `/q/{code}` : même chose (307 vers `/p/{slug}?s=qr` ou la même page 404).
  * - Toute réponse : `Cache-Control: private, no-store`, `X-Robots-Tag: noindex, nofollow`.
  * - `robots.txt` : `Disallow` pour `/v/`, `/t/`, `/q/` et `/activer/`.
  *
@@ -131,13 +131,13 @@ async function publishedOwnerOfOneTag(): Promise<{ email: string; slug: string; 
 // ---------------------------------------------------------------------------------------------------------------
 
 test.describe("redirections /t et /q (critères 1 et 2)", () => {
-  test("critère 1 : puce assignée à un profil publié → 307 vers /p/{slug}, no-store et noindex", async ({ page }) => {
+  test("critère 1 : puce assignée à un profil publié → 307 vers /p/{slug}?s=nfc (0029), no-store et noindex", async ({ page }) => {
     const { slug, tag } = await publishedOwnerOfOneTag();
 
     const response = await scan(page, `/t/${tag.uid}`);
 
     expect(response.status()).toBe(307);
-    expect(locationPath(response)).toBe(`/p/${slug}`);
+    expect(locationPath(response)).toBe(`/p/${slug}?s=nfc`);
     expectNoStoreNoIndex(response);
   });
 
@@ -185,7 +185,7 @@ test.describe("redirections /t et /q (critères 1 et 2)", () => {
     expectNoStoreNoIndex(response);
   });
 
-  test("critère 1 : QR d'un profil publié → 307 vers /p/{slug} ; non publié, inconnu, hors format → 404", async ({ page }) => {
+  test("critère 1 : QR d'un profil publié → 307 vers /p/{slug}?s=qr (0029) ; non publié, inconnu, hors format → 404", async ({ page }) => {
     const published = await createProfile({ is_published: true });
     const unpublished = await createProfile({ is_published: false });
     const publishedCode = await qrCodeOf(published.email);
@@ -193,7 +193,7 @@ test.describe("redirections /t et /q (critères 1 et 2)", () => {
 
     const redirect = await scan(page, `/q/${publishedCode}`);
     expect(redirect.status()).toBe(307);
-    expect(locationPath(redirect)).toBe(`/p/${published.slug}`);
+    expect(locationPath(redirect)).toBe(`/p/${published.slug}?s=qr`);
     expectNoStoreNoIndex(redirect);
 
     const bodies: string[] = [];
@@ -398,7 +398,7 @@ test.describe("Mes puces (critère 5)", () => {
     await expect(row.getByText("Active", { exact: true })).toBeVisible();
     const active = await scan(page, `/t/${tag.uid}`);
     expect(active.status()).toBe(307);
-    expect(locationPath(active)).toBe(`/p/${slug}`);
+    expect(locationPath(active)).toBe(`/p/${slug}?s=nfc`);
 
     const release = row.getByRole("button", { name: /^Retirer de mon compte/ });
     await expectTarget(release);

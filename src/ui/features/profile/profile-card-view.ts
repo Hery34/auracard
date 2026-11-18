@@ -10,7 +10,8 @@ import { scramble, type ScrambledText } from "@/ui/features/profile/scrambled-te
 /** Revealed on click only: `href` and `text` never reach the HTML in clear; `text: null` keeps the control's label. */
 export type ProtectedContact = { href: ScrambledText; text: ScrambledText | null; external: boolean };
 
-type LinkLabel = { platform: LinkPlatform; title: string; subtitle: string | null };
+/** `id`: the row of `links`, target of `link_click` (0029, decision 9). */
+type LinkLabel = { id: string; platform: LinkPlatform; title: string; subtitle: string | null };
 
 export type ProfileLinkView =
   | (LinkLabel & { kind: "anchor"; href: string })
@@ -57,14 +58,15 @@ export function toProfileCardView(profile: PublicProfile, mediaOrigin: string): 
       .sort((first, second) => first.position - second.position)
       .flatMap((link) => {
         const safe = safeHttpsHref(link.url);
-        return safe === null ? [] : [toLinkView(link.platform, safe.href, link.label)];
+        return safe === null ? [] : [toLinkView(link.id, link.platform, safe.href, link.label)];
       }),
   };
 }
 
-function toLinkView(platform: LinkPlatform, href: string, label: string | null): ProfileLinkView {
+function toLinkView(id: string, platform: LinkPlatform, href: string, label: string | null): ProfileLinkView {
   const name = PLATFORM_NAMES[platform];
   const view: LinkLabel = {
+    id,
     platform,
     title: label ?? name,
     subtitle: label !== null && !GENERIC_PLATFORMS.has(platform) ? name : null,

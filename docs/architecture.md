@@ -122,7 +122,7 @@ transaction métier ──► insert carnet.outbox ──► n8n (interrogation 
 - **Next.js** : Docker sur VPS EasyPanel (ADR 0007).
 - **n8n** : instance existante, workflows versionnés dans `n8n/workflows/`.
 - Domaine : `auracard.fr` (ADR 0015), URL courte et stable pour les puces et QR, gravée dans le matériel donc irréversible ; branché plus tard.
-s
+
 ## 9. Phases (révisées)
 1. **Socle** : initialisation Next.js (version corrigée la plus récente), outillage (`pnpm check`, CI), registre `platform`, schéma `carnet` de base, inscription + appartenance.
 2. **Profil public & vCard** : éditeur minimal, page profil, vCard, liens.

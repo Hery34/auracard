@@ -12,7 +12,7 @@ Une ADR acceptée n'est jamais réécrite : on en écrit une nouvelle qui la rem
 | 0005 | Module de rendez-vous natif en deux phases | Acceptée |
 | 0006 | Outbox transactionnelle et rôle de n8n | Acceptée |
 | 0007 | Hébergement Next.js sur un VPS administré par EasyPanel | Acceptée |
-| 0008 | Défi anti-robot : Cloudflare Turnstile | Proposée |
+| 0008 | Défi anti-robot : Cloudflare Turnstile | Acceptée |
 | 0009 | Fournisseur d'envoi d'e-mails : Infomaniak | Acceptée |
 | 0010 | Usages autorisés du client `service_role` | Remplacée par 0011 |
 | 0011 | Usages autorisés du client `service_role` (v2 : limitation de débit) | Acceptée |

@@ -1,5 +1,5 @@
 # 0008 — Défi anti-robot : Cloudflare Turnstile
-- Statut : Proposée (lecture « Cloudflare Turnstile » à confirmer par Hery — voir Contexte)
+- Statut : Acceptée (18/11/2026)
 
 ## Contexte
 Les surfaces publiques (formulaire de contact, prise de rendez-vous) doivent combiner limitation de débit et défi anti-robot (`docs/rules/security.md`). Hery a retenu « Turnstile ». Turnstile est un produit **Cloudflare** ; Vercel n'a pas de produit de ce nom, et sa solution BotID n'est utilisable que sur un hébergement Vercel, écarté par l'ADR 0007. Cette ADR retient donc Cloudflare Turnstile.

@@ -1,10 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { Montserrat } from "next/font/google";
+
+import { siteUrl } from "@/server/container";
+
 import "./globals.css";
 
 const montserrat = Montserrat({ subsets: ["latin"], display: "swap", variable: "--font-montserrat" });
 
-export const metadata: Metadata = { title: { default: "AuraCard", template: "%s · AuraCard" } };
+export const metadata: Metadata = { metadataBase: new URL(siteUrl), title: { default: "AuraCard", template: "%s · AuraCard" } };
 
 // themeColor must stay equal to --background in globals.css.
 export const viewport: Viewport = { themeColor: "#0A0A0C" };

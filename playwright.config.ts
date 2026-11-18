@@ -43,10 +43,11 @@ function e2eBaseUrl(): string | undefined {
 const baseURL = e2eBaseUrl();
 
 /**
- * `pnpm start` runs in production, where `env.ts` requires an `https://` SITE_URL (a `.env*` value meant for
- * `next dev` would be refused). It only ends up in the vCard URL, whose path the E2E check.
+ * `pnpm start` runs in production, where `env.ts` requires an `https://` SITE_URL, except over `http://` on
+ * `localhost` or `127.0.0.1` (local run without TLS proxy). It is the origin `/api/beacon` compares `Origin` with
+ * (0029, point 10), so it must match the origin the browser loads.
  */
-const siteUrl = process.env.SITE_URL ?? (baseURL ? new URL(baseURL).origin : "https://localhost:3000");
+const siteUrl = process.env.SITE_URL ?? (baseURL ? new URL(baseURL).origin : "http://localhost:3000");
 
 export default defineConfig({
   testDir: "tests/e2e",

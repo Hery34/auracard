@@ -449,16 +449,18 @@ describe("profile writes and public read against the local Supabase stack", () =
       expect(await publicRead()("it-0017-no-such-profile")).toStrictEqual(ok(null));
     });
 
-    it("a published profile → its public fields and its links sorted by position, no internal column", async () => {
+    it("a published profile → its public fields and its links sorted by position (with their id, 0029/0034), no other internal column", async () => {
       const member = await createMember(admin, track);
       const { updateProfile, replaceLinks } = useCasesOn(member.session);
       const update = aProfileUpdate({ isPublished: true, isIndexable: false });
       await updateProfile(update);
-      await replaceLinks([
+      const saved = await replaceLinks([
         aLink({ platform: "website", url: aHttpsUrl("https://atelier-merel.example/"), label: "Atelier" }),
         aLink(),
         aLink({ platform: "github", url: aHttpsUrl("https://github.com/elodie") }),
       ]);
+      if (!saved.ok) throw new Error(`replaceLinks failed: ${saved.error}`);
+      const [websiteId, linkedinId, githubId] = saved.value.links.map((link) => link.id);
 
       expect(await publicRead()(member.slug)).toStrictEqual(
         ok({
@@ -475,9 +477,9 @@ describe("profile writes and public read against the local Supabase stack", () =
           websiteUrl: update.websiteUrl,
           isIndexable: false,
           links: [
-            { platform: "website", url: "https://atelier-merel.example/", label: "Atelier", position: 0 },
-            { platform: "linkedin", url: "https://www.linkedin.com/in/elodie-durand-merel", label: null, position: 1 },
-            { platform: "github", url: "https://github.com/elodie", label: null, position: 2 },
+            { id: websiteId, platform: "website", url: "https://atelier-merel.example/", label: "Atelier", position: 0 },
+            { id: linkedinId, platform: "linkedin", url: "https://www.linkedin.com/in/elodie-durand-merel", label: null, position: 1 },
+            { id: githubId, platform: "github", url: "https://github.com/elodie", label: null, position: 2 },
           ],
         }),
       );

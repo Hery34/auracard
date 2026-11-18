@@ -53,6 +53,23 @@ const adminClient = {
   message: "admin.ts (service_role) is imported by src/server/container.ts only.",
 };
 
+// ADR 0011: the adapters fed by the service_role client are wired by the composition root only (tests excepted).
+const adminAdapters = {
+  group: [
+    "**/repositories/supabase-profile-registrar",
+    "**/repositories/supabase-rate-limiter",
+    "**/repositories/supabase-instance-account-remover",
+    "**/repositories/supabase-event-recorder",
+    "./supabase-profile-registrar",
+    "./supabase-rate-limiter",
+    "./supabase-instance-account-remover",
+    "./supabase-event-recorder",
+  ],
+  message: "Adapters of the service_role client are imported by src/server/container.ts only (ADR 0011).",
+};
+
+const testFiles = ["**/*.test.ts", "**/*.spec.ts", "tests/**"];
+
 // Rule options are replaced, not merged, between config objects: every block lists all its patterns.
 const restrictImports = (...patterns) => ({
   "no-restricted-imports": ["error", { patterns }],
@@ -66,6 +83,11 @@ export default defineConfig([
     files: ["**/*.{js,mjs,cjs,ts,tsx,mts,cts}"],
     ignores: ["src/server/container.ts"],
     rules: restrictImports(adminClient),
+  },
+  {
+    files: ["**/*.{js,mjs,cjs,ts,tsx,mts,cts}"],
+    ignores: ["src/server/container.ts", ...testFiles],
+    rules: restrictImports(adminClient, adminAdapters),
   },
   {
     files: ["src/domain/**"],

@@ -5,6 +5,9 @@ import { z } from "zod";
 /** Outside production only: the origin of `next dev`. */
 const DEVELOPMENT_SITE_URL = "http://localhost:3000";
 
+/** Hosts allowed over `http://` in production: the local E2E run of `pnpm start`, without TLS proxy (0029). */
+const LOCAL_HTTP_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1"]);
+
 /** Public origin (scheme, host, optional port), normalized without trailing slash. */
 const originSchema = z
   .url({ protocol: /^https?$/ })
@@ -28,7 +31,7 @@ export const envSchema = z
     if (raw.NODE_ENV !== "production") return;
     if (raw.SITE_URL === undefined) {
       context.addIssue({ code: "custom", path: ["SITE_URL"], message: "required in production" });
-    } else if (!raw.SITE_URL.startsWith("https://")) {
+    } else if (!isProductionSiteUrl(raw.SITE_URL)) {
       context.addIssue({ code: "custom", path: ["SITE_URL"], message: "https:// required in production" });
     }
   })
@@ -47,6 +50,11 @@ export function parseEnv(raw: Partial<NodeJS.ProcessEnv>): Env {
     throw new Error(`Invalid environment variables:\n${issues.join("\n")}`);
   }
   return parsed.data;
+}
+
+function isProductionSiteUrl(origin: string): boolean {
+  const url = URL.parse(origin);
+  return url !== null && (url.protocol === "https:" || (url.protocol === "http:" && LOCAL_HTTP_HOSTS.has(url.hostname)));
 }
 
 function isBareOrigin(value: string): boolean {

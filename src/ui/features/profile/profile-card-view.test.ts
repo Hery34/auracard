@@ -23,12 +23,12 @@ describe("toProfileCardView — public page view model (0018, decisions 8 and 9)
     const view = toProfileCardView(
       aPublicProfile({
         links: [
-          { platform: "linkedin", url: "https://www.linkedin.com/in/elodie", label: null, position: 0 },
-          { platform: "website", url: "javascript:alert(1)", label: null, position: 1 },
-          { platform: "x", url: "http://x.com/elodie", label: null, position: 2 },
-          { platform: "document", url: "data:text/html,<script>alert(1)</script>", label: null, position: 3 },
-          { platform: "github", url: "//github.com/elodie", label: null, position: 4 },
-          { platform: "youtube", url: "https://www.youtube.com/@elodie", label: null, position: 5 },
+          { id: "a0000001-0000-4000-8000-000000000001", platform: "linkedin", url: "https://www.linkedin.com/in/elodie", label: null, position: 0 },
+          { id: "a0000002-0000-4000-8000-000000000002", platform: "website", url: "javascript:alert(1)", label: null, position: 1 },
+          { id: "a0000003-0000-4000-8000-000000000003", platform: "x", url: "http://x.com/elodie", label: null, position: 2 },
+          { id: "a0000004-0000-4000-8000-000000000004", platform: "document", url: "data:text/html,<script>alert(1)</script>", label: null, position: 3 },
+          { id: "a0000005-0000-4000-8000-000000000005", platform: "github", url: "//github.com/elodie", label: null, position: 4 },
+          { id: "a0000006-0000-4000-8000-000000000006", platform: "youtube", url: "https://www.youtube.com/@elodie", label: null, position: 5 },
         ],
       }),
       MEDIA_ORIGIN,
@@ -51,9 +51,9 @@ describe("toProfileCardView — public page view model (0018, decisions 8 and 9)
     const view = toProfileCardView(
       aPublicProfile({
         links: [
-          { platform: "github", url: "https://github.com/elodie", label: null, position: 2 },
-          { platform: "linkedin", url: "https://www.linkedin.com/in/elodie", label: null, position: 0 },
-          { platform: "instagram", url: "https://www.instagram.com/elodie", label: null, position: 1 },
+          { id: "a0000007-0000-4000-8000-000000000007", platform: "github", url: "https://github.com/elodie", label: null, position: 2 },
+          { id: "a0000008-0000-4000-8000-000000000008", platform: "linkedin", url: "https://www.linkedin.com/in/elodie", label: null, position: 0 },
+          { id: "a0000009-0000-4000-8000-000000000009", platform: "instagram", url: "https://www.instagram.com/elodie", label: null, position: 1 },
         ],
       }),
       MEDIA_ORIGIN,
@@ -65,7 +65,7 @@ describe("toProfileCardView — public page view model (0018, decisions 8 and 9)
   it("protects a WhatsApp link like the phone: revealed on click, no URL in clear", () => {
     const view = toProfileCardView(
       aPublicProfile({
-        links: [{ platform: "whatsapp", url: WHATSAPP_URL, label: null, position: 0 }],
+        links: [{ id: "a000000a-0000-4000-8000-00000000000a", platform: "whatsapp", url: WHATSAPP_URL, label: null, position: 0 }],
       }),
       MEDIA_ORIGIN,
     );
@@ -111,8 +111,8 @@ describe("toProfileCardView — public page view model (0018, decisions 8 and 9)
         phone: PHONE,
         contactEmail: EMAIL,
         links: [
-          { platform: "whatsapp", url: WHATSAPP_URL, label: "Écrivez-moi", position: 0 },
-          { platform: "linkedin", url: "https://www.linkedin.com/in/elodie", label: null, position: 1 },
+          { id: "a000000b-0000-4000-8000-00000000000b", platform: "whatsapp", url: WHATSAPP_URL, label: "Écrivez-moi", position: 0 },
+          { id: "a000000c-0000-4000-8000-00000000000c", platform: "linkedin", url: "https://www.linkedin.com/in/elodie", label: null, position: 1 },
         ],
       }),
       MEDIA_ORIGIN,
@@ -181,5 +181,24 @@ describe("toProfileCardView — public page view model (0018, decisions 8 and 9)
 
       expect([view.avatarUrl, view.bannerUrl, view.logoUrl]).toStrictEqual([null, null, null]);
     });
+  });
+});
+
+describe("toProfileCardView — link ids for the beacon (0029, decision 9)", () => {
+  it("every link view, anchor or protected (WhatsApp), carries the id of its link (target of link_click)", () => {
+    const view = toProfileCardView(
+      aPublicProfile({
+        links: [
+          { id: "6a1b2c3d-4e5f-4a6b-8c7d-8e9f0a1b2c3d", platform: "linkedin", url: "https://www.linkedin.com/in/elodie", label: null, position: 0 },
+          { id: "7b2c3d4e-5f6a-4b7c-9d8e-9f0a1b2c3d4e", platform: "whatsapp", url: WHATSAPP_URL, label: null, position: 1 },
+        ],
+      }),
+      MEDIA_ORIGIN,
+    );
+
+    expect(view.links.map((link) => [link.kind, link.id])).toStrictEqual([
+      ["anchor", "6a1b2c3d-4e5f-4a6b-8c7d-8e9f0a1b2c3d"],
+      ["protected", "7b2c3d4e-5f6a-4b7c-9d8e-9f0a1b2c3d4e"],
+    ]);
   });
 });

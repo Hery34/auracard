@@ -60,6 +60,7 @@ export function toPreviewProfile(
     websiteUrl: blankToNull(fields.websiteUrl),
     isIndexable: fields.isIndexable,
     links: links.map((link, position) => ({
+      id: link.id ?? link.key,
       platform: link.platform,
       url: link.url.trim(),
       label: blankToNull(link.label),

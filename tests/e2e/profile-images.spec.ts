@@ -232,7 +232,8 @@ test.describe("images du profil (0021)", () => {
     await page.goto(`/p/${fixture.slug}`);
     await expect(page.getByText(FULL_PROFILE_INITIALS, { exact: true })).toBeVisible();
     await expect(avatarImage(page)).toHaveCount(0);
-    await expect(page.locator('meta[property="og:image"]')).toHaveCount(0);
+    // 0014: without an avatar, og:image falls back to the brand image.
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", /\/opengraph-image\.png(?:\?|$)/);
     const vcard = await request.get(`/v/${fixture.slug}`);
     expect(unfoldVCard((await vcard.body()).toString("utf8")).some((line) => line.startsWith("PHOTO"))).toBe(false);
   });

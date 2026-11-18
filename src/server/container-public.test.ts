@@ -18,6 +18,11 @@
  * 0025 (decisions 1 to 4): PublicContainer gains `resolveNfcTag: ResolveNfcTag` and `resolveQrCode: ResolveQrCode`,
  * built on `makeSupabaseNfcTagResolver(createPublicSupabaseClient())` and `makeSupabaseQrCodeResolver(<same>)`:
  * cookie-less anonymous client, never the service_role client, no rate limiter, no cache (every scan is read live).
+ *
+ * 0029 (decisions 3, 4, 6, 7, 9): PublicContainer gains `recordBeaconEvent: RecordBeaconFromRequest` and
+ * `recordServerEvent: RecordServerEventFromRequest`, built on demand (like downloadVCard): the service_role client
+ * feeds `makeSupabaseEventRecorder(admin)` and `makeSupabaseRateLimiter(admin, RATE_LIMIT_SECRET)` (beacon 300/h,
+ * scan 60/h). The user-agent is `headers.get("user-agent")`, the address `requestClientAddress(headers)`.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -32,6 +37,8 @@ import { QR_CODE, TAG_UID } from "../../tests/builders/nfc";
 import { aPublicProfile, fakePublicProfileReader } from "../../tests/builders/fake-public-profile-reader";
 import { imageBytes } from "../../tests/builders/images";
 import { fakeRateLimiter } from "../../tests/builders/fake-rate-limiter";
+import { EVENT_ID, IPHONE_USER_AGENT, PREVIEW_BOT_USER_AGENT } from "../../tests/builders/analytics";
+import { fakeEventRecorder } from "../../tests/builders/fake-event-recorder";
 
 type CacheOptions = { tags: string[] };
 
@@ -58,6 +65,7 @@ const mocks = vi.hoisted(() => ({
   makeMediaFetcher: vi.fn(),
   makeSupabaseNfcTagResolver: vi.fn(),
   makeSupabaseQrCodeResolver: vi.fn(),
+  makeSupabaseEventRecorder: vi.fn(),
   headers: vi.fn(),
   nextHeadersLoaded: false,
 }));
@@ -113,6 +121,10 @@ vi.mock("@/server/repositories/supabase-qr-code-resolver", () => ({
   makeSupabaseQrCodeResolver: mocks.makeSupabaseQrCodeResolver,
 }));
 
+vi.mock("@/server/repositories/supabase-event-recorder", () => ({
+  makeSupabaseEventRecorder: mocks.makeSupabaseEventRecorder,
+}));
+
 vi.mock("@/server/adapters/media-fetcher", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/server/adapters/media-fetcher")>();
   return { ...actual, makeMediaFetcher: mocks.makeMediaFetcher };
@@ -148,13 +160,16 @@ beforeEach(() => {
     .mockReset()
     .mockImplementation(() => fakeNfcTagResolver({ log, results: [ok({ state: "active", slug: SLUG })] }));
   mocks.makeSupabaseQrCodeResolver.mockReset().mockImplementation(() => fakeQrCodeResolver({ log, results: [ok(SLUG)] }));
+  mocks.makeSupabaseEventRecorder.mockReset().mockImplementation(() => fakeEventRecorder({ log }));
 });
 
 describe("createPublicContainer — wiring", () => {
-  it("decision 7, 0025: exposes getPublicProfile, downloadVCard, resolveNfcTag and resolveQrCode only (getVCard retired)", () => {
+  it("decision 7, 0025, 0029: exposes getPublicProfile, downloadVCard, resolveNfcTag, resolveQrCode, recordBeaconEvent and recordServerEvent only", () => {
     expect(Object.keys(createPublicContainer()).sort()).toStrictEqual([
       "downloadVCard",
       "getPublicProfile",
+      "recordBeaconEvent",
+      "recordServerEvent",
       "resolveNfcTag",
       "resolveQrCode",
     ]);
@@ -300,5 +315,67 @@ describe("createPublicContainer — NFC and QR resolution (0025)", () => {
   it("a malformed uid never reaches the resolver", async () => {
     expect(await createPublicContainer().resolveNfcTag("../admin")).toStrictEqual(ok({ state: "not_found" }));
     expect(log.inputsOf("nfcTags", "resolve")).toStrictEqual([]);
+  });
+});
+
+describe("createPublicContainer — statistics (0029)", () => {
+  const BEACON = { slug: SLUG, id: EVENT_ID, type: "profile_view", source: "nfc", linkId: null };
+
+  function visitorHeaders(userAgent: string = IPHONE_USER_AGENT): Headers {
+    return new Headers({ "x-forwarded-for": CLIENT_ADDRESS, "user-agent": userAgent });
+  }
+
+  it("decision 7: no service_role client nor recorder before a recording (static rendering of the page untouched)", async () => {
+    const container = createPublicContainer();
+    await container.getPublicProfile(SLUG);
+    await container.resolveNfcTag(TAG_UID);
+
+    expect(mocks.createAdminClient).not.toHaveBeenCalled();
+    expect(mocks.makeSupabaseEventRecorder).not.toHaveBeenCalled();
+  });
+
+  it("decisions 6 and 7: recordBeaconEvent limits on the address of the headers (beacon, 300/h), then writes through the service_role recorder", async () => {
+    const result = await createPublicContainer().recordBeaconEvent(BEACON, visitorHeaders());
+
+    expect(result).toStrictEqual(ok("recorded"));
+    expect(mocks.makeSupabaseEventRecorder).toHaveBeenCalledWith(mocks.adminClient);
+    expect(mocks.makeSupabaseRateLimiter).toHaveBeenCalledWith(mocks.adminClient, VALID_ENV.RATE_LIMIT_SECRET);
+    expect(log.sequence()).toStrictEqual(["rateLimiter.consume", "events.record"]);
+    expect(log.inputsOf("rateLimiter", "consume")).toStrictEqual([
+      { scope: "beacon", subject: CLIENT_ADDRESS, limit: 300, windowSeconds: 3600 },
+    ]);
+    expect(log.inputsOf("events", "record")).toStrictEqual([
+      { id: EVENT_ID, slug: SLUG, type: "profile_view", source: "nfc", linkId: null, deviceClass: "mobile" },
+    ]);
+  });
+
+  it("criterion 3: recordBeaconEvent with a link-preview user-agent → ignored, nothing consumed nor written", async () => {
+    const result = await createPublicContainer().recordBeaconEvent(BEACON, visitorHeaders(PREVIEW_BOT_USER_AGENT));
+
+    expect(result).toStrictEqual(ok("ignored"));
+    expect(log.sequence()).toStrictEqual([]);
+  });
+
+  it("decisions 3, 7 and 9: recordServerEvent limits on the address of the headers (scan, 60/h), then writes nfc_scan through the service_role recorder", async () => {
+    const result = await createPublicContainer().recordServerEvent({ slug: SLUG, type: "nfc_scan" }, visitorHeaders());
+
+    expect(result).toStrictEqual(ok("recorded"));
+    expect(mocks.makeSupabaseEventRecorder).toHaveBeenCalledWith(mocks.adminClient);
+    expect(mocks.makeSupabaseRateLimiter).toHaveBeenCalledWith(mocks.adminClient, VALID_ENV.RATE_LIMIT_SECRET);
+    expect(log.sequence()).toStrictEqual(["rateLimiter.consume", "events.record"]);
+    expect(log.inputsOf("rateLimiter", "consume")).toStrictEqual([
+      { scope: "scan", subject: CLIENT_ADDRESS, limit: 60, windowSeconds: 3600 },
+    ]);
+    expect(log.inputsOf("events", "record")).toMatchObject([
+      { slug: SLUG, type: "nfc_scan", source: "nfc", linkId: null, deviceClass: "mobile" },
+    ]);
+  });
+
+  it("decision 7: the container never loads next/headers for a recording", async () => {
+    await createPublicContainer().recordBeaconEvent(BEACON, visitorHeaders());
+    await createPublicContainer().recordServerEvent({ slug: SLUG, type: "qr_scan" }, visitorHeaders());
+
+    expect(mocks.nextHeadersLoaded).toBe(false);
+    expect(mocks.createServerSupabaseClient).not.toHaveBeenCalled();
   });
 });
