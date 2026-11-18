@@ -18,6 +18,7 @@ const EXPECTED_ROUTES: ReadonlyArray<{ route: string; group: string }> = [
   { route: "/tableau-de-bord/puces", group: "(dashboard)" },
   { route: "/tableau-de-bord/qr", group: "(dashboard)" },
   { route: "/tableau-de-bord/compte", group: "(dashboard)" },
+  { route: "/tableau-de-bord/statistiques", group: "(dashboard)" },
   { route: "/activer/[uid]", group: "(public)" },
 ];
 
