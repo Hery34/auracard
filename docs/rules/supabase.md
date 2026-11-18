@@ -29,4 +29,12 @@
 - Les fonctions d'autorisation appelées dans les politiques sont enveloppées dans `(select …)` pour être évaluées une fois par requête.
 - Statistiques : table d'événements brute partitionnée par mois si le volume le justifie (ADR à prévoir), agrégats quotidiens via `pg_cron`.
 
+## Limite de lignes PostgREST
+
+L'instance partagée fixe `PGRST_DB_MAX_ROWS` = 100 (fiche 0005, point 4) ; la pile locale est alignée (`supabase/config.toml`, `max_rows = 100`). Au-delà, PostgREST tronque **sans erreur**.
+
+- Toute lecture par lignes dont le résultat peut dépasser 100 lignes passe par une fonction SQL qui renvoie **une seule valeur `jsonb`** (`security invoker`, filtrée sur une clé indexée, plage bornée), ou par une pagination couverte par un test au-delà de 100 lignes.
+- Une liste bornée par construction (ex. `links` : 12 au plus) peut rester une lecture directe ; la borne est citée en commentaire dans le dépôt.
+- Les fonctions renvoyant `setof` sont soumises à la même limite.
+
 
