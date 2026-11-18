@@ -7,7 +7,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { rawEnv, stubValidEnv } from "../../../tests/builders/env";
+import { PRODUCTION_LIKE_TURNSTILE_KEYS, rawEnv, stubValidEnv } from "../../../tests/builders/env";
 
 async function loadEnvModule(): Promise<typeof import("@/server/infrastructure/env")> {
   vi.resetModules();
@@ -43,7 +43,7 @@ describe("QR_PRINT_READY (0026, decision 8)", () => {
 
   it("production: absent is valid (false), 'true' is valid (true)", async () => {
     const { parseEnv } = await loadEnvModule();
-    const production = { NODE_ENV: "production", SITE_URL: "https://carnet.example" };
+    const production = { NODE_ENV: "production", SITE_URL: "https://carnet.example", ...PRODUCTION_LIKE_TURNSTILE_KEYS };
 
     expect(parseEnv(rawEnv({ ...production, QR_PRINT_READY: undefined })).QR_PRINT_READY).toBe(false);
     expect(parseEnv(rawEnv({ ...production, QR_PRINT_READY: "true" })).QR_PRINT_READY).toBe(true);

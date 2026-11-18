@@ -8,6 +8,12 @@ const DEVELOPMENT_SITE_URL = "http://localhost:3000";
 /** Hosts allowed over `http://` in production: the local E2E run of `pnpm start`, without TLS proxy (0029). */
 const LOCAL_HTTP_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1"]);
 
+/**
+ * Cloudflare Turnstile test keys (site or secret): never in a public production (0032, decision 14).
+ * A configuration guard against a forgotten test key, not a security boundary.
+ */
+const TURNSTILE_TEST_KEY = /^[123]x0+[A-F]{2}$/;
+
 /** Public origin (scheme, host, optional port), normalized without trailing slash. */
 const originSchema = z
   .url({ protocol: /^https?$/ })
@@ -20,6 +26,8 @@ export const envSchema = z
     NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20),
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
     RATE_LIMIT_SECRET: z.string().regex(/^[0-9a-f]{64}$/, "expected 64 lowercase hex characters (openssl rand -hex 32)"),
+    TURNSTILE_SITE_KEY: z.string().trim().min(1),
+    TURNSTILE_SECRET_KEY: z.string().trim().min(1),
     SITE_URL: originSchema.optional(),
     QR_PRINT_READY: z
       .string()
@@ -33,6 +41,12 @@ export const envSchema = z
       context.addIssue({ code: "custom", path: ["SITE_URL"], message: "required in production" });
     } else if (!isProductionSiteUrl(raw.SITE_URL)) {
       context.addIssue({ code: "custom", path: ["SITE_URL"], message: "https:// required in production" });
+    }
+    if (isLocalSiteUrl(raw.SITE_URL)) return;
+    for (const variable of ["TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY"] as const) {
+      if (TURNSTILE_TEST_KEY.test(raw[variable])) {
+        context.addIssue({ code: "custom", path: [variable], message: "Cloudflare test key refused on a public production" });
+      }
     }
   })
   .transform((raw) => ({ ...raw, SITE_URL: raw.SITE_URL ?? DEVELOPMENT_SITE_URL }));
@@ -55,6 +69,11 @@ export function parseEnv(raw: Partial<NodeJS.ProcessEnv>): Env {
 function isProductionSiteUrl(origin: string): boolean {
   const url = URL.parse(origin);
   return url !== null && (url.protocol === "https:" || (url.protocol === "http:" && LOCAL_HTTP_HOSTS.has(url.hostname)));
+}
+
+function isLocalSiteUrl(origin: string | undefined): boolean {
+  const url = origin === undefined ? null : URL.parse(origin);
+  return url !== null && LOCAL_HTTP_HOSTS.has(url.hostname);
 }
 
 function isBareOrigin(value: string): boolean {

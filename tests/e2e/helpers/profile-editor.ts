@@ -37,7 +37,7 @@ export async function linksOf(profileId: string): Promise<StoredLink[]> {
 export async function profileFieldsOf(profileId: string): Promise<ProfileFields> {
   const { data, error } = await admin()
     .from("profiles")
-    .select("display_name, job_title, company, bio, contact_email, phone, website_url, is_published, is_indexable")
+    .select("display_name, job_title, company, bio, contact_email, phone, website_url, is_published, is_indexable, accepts_leads")
     .eq("id", profileId)
     .single();
   if (error !== null) {

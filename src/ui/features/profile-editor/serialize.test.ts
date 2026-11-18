@@ -9,7 +9,12 @@ import { LINK_IDS } from "../../../../tests/builders/links";
 
 describe("toProfileFormData", () => {
   it("criterion 1: sends every text field (empty to clear it) and the switches as 'on' only when set", () => {
-    const data = toProfileFormData({ ...toEditorFields(anOwnProfile()), jobTitle: "Architecte", isPublished: true });
+    const data = toProfileFormData({
+      ...toEditorFields(anOwnProfile()),
+      jobTitle: "Architecte",
+      isPublished: true,
+      acceptsLeads: false,
+    });
 
     expect(Object.fromEntries(data)).toStrictEqual({
       displayName: "Élodie Durand-Mérel",
@@ -21,6 +26,15 @@ describe("toProfileFormData", () => {
       websiteUrl: "",
       isPublished: "on",
     });
+  });
+});
+
+describe("toProfileFormData — acceptsLeads (0032)", () => {
+  it("« Recevoir des messages » set → acceptsLeads: 'on'; unset → absent", () => {
+    const fields = toEditorFields(anOwnProfile());
+
+    expect(toProfileFormData({ ...fields, acceptsLeads: true }).get("acceptsLeads")).toBe("on");
+    expect(toProfileFormData({ ...fields, acceptsLeads: false }).has("acceptsLeads")).toBe(false);
   });
 });
 

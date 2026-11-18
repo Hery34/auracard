@@ -35,9 +35,19 @@ describe("RATE_LIMITS", () => {
     expect(RATE_LIMITS.scan).toStrictEqual({ limit: 60, windowSeconds: 3600 });
   });
 
-  it("defines exactly the eight scopes signup, login, login-account, profile-write, vcard, nfc-activate, beacon and scan", () => {
+  it("lead: 5 messages per address per hour (0032, decision 2)", () => {
+    expect(RATE_LIMITS.lead).toStrictEqual({ limit: 5, windowSeconds: 3600 });
+  });
+
+  it("lead-profile: 50 messages per profile per 23 hours (0032, decisions 2 and 12)", () => {
+    expect(RATE_LIMITS["lead-profile"]).toStrictEqual({ limit: 50, windowSeconds: 82800 });
+  });
+
+  it("defines exactly the ten scopes signup, login, login-account, profile-write, vcard, nfc-activate, beacon, scan, lead and lead-profile", () => {
     expect(Object.keys(RATE_LIMITS).sort()).toStrictEqual([
       "beacon",
+      "lead",
+      "lead-profile",
       "login",
       "login-account",
       "nfc-activate",
@@ -50,8 +60,8 @@ describe("RATE_LIMITS", () => {
 });
 
 describe("LONGEST_RATE_LIMIT_WINDOW_SECONDS", () => {
-  it("is 3600 seconds, the longest window (minimal purge argument)", () => {
-    expect(LONGEST_RATE_LIMIT_WINDOW_SECONDS).toBe(3600);
+  it("is 82800 seconds since 0032 (lead-profile, 23 hours, decision 12), the longest window (minimal purge argument)", () => {
+    expect(LONGEST_RATE_LIMIT_WINDOW_SECONDS).toBe(82800);
   });
 
   it("equals the maximum of all configured windows", () => {

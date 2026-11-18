@@ -23,6 +23,7 @@ export function aProfileUpdate(overrides: Partial<ProfileUpdate> = {}): ProfileU
     websiteUrl: aHttpsUrl("https://atelier-merel.example/"),
     isPublished: true,
     isIndexable: false,
+    acceptsLeads: true,
     ...overrides,
   };
 }

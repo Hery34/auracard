@@ -29,6 +29,7 @@ const PROFILE_FIELDS = [
   "websiteUrl",
   "isPublished",
   "isIndexable",
+  "acceptsLeads",
 ] as const;
 
 /** The session, the rate limit and the ownership of the profile are checked by the use case. */

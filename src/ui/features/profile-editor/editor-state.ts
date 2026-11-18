@@ -7,7 +7,7 @@ export const TEXT_FIELDS = ["displayName", "jobTitle", "company", "bio", "contac
 export type TextFieldName = (typeof TEXT_FIELDS)[number];
 
 /** Form values as typed: empty string for an empty field. */
-export type EditorFields = Record<TextFieldName, string> & { isPublished: boolean; isIndexable: boolean };
+export type EditorFields = Record<TextFieldName, string> & { isPublished: boolean; isIndexable: boolean; acceptsLeads: boolean };
 
 /** `key` identifies the row in React; `id` is the stored link's, `null` until the first save. */
 export type EditorLink = { key: string; id: string | null; platform: LinkPlatform; url: string; label: string };
@@ -30,6 +30,7 @@ export function toEditorFields(profile: OwnProfile): EditorFields {
     websiteUrl: profile.websiteUrl ?? "",
     isPublished: profile.isPublished,
     isIndexable: profile.isIndexable,
+    acceptsLeads: profile.acceptsLeads,
   };
 }
 
@@ -59,6 +60,7 @@ export function toPreviewProfile(
     phone: blankToNull(fields.phone),
     websiteUrl: blankToNull(fields.websiteUrl),
     isIndexable: fields.isIndexable,
+    acceptsLeads: fields.acceptsLeads,
     links: links.map((link, position) => ({
       id: link.id ?? link.key,
       platform: link.platform,

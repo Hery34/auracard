@@ -7,7 +7,7 @@
  * export type UpdateProfileState = { status: "idle" } | ErrorState | { status: "saved" };
  * export type ReplaceLinksState = { status: "idle" } | ErrorState | { status: "saved"; links: SavedLink[] };
  *
- * // Fields: displayName, jobTitle, company, bio, contactEmail, phone, websiteUrl, isPublished, isIndexable (checkbox "on").
+ * // Fields: displayName, jobTitle, company, bio, contactEmail, phone, websiteUrl, isPublished, isIndexable, acceptsLeads (0032) (checkbox "on").
  * export async function updateProfileAction(previous: UpdateProfileState, formData: FormData): Promise<UpdateProfileState>;
  * // Field `links`: JSON array of { id?, platform, url, label? }, the full ordered list.
  * export async function replaceLinksAction(previous: ReplaceLinksState, formData: FormData): Promise<ReplaceLinksState>;
@@ -83,6 +83,7 @@ const expectedUpdate = {
   websiteUrl: "https://atelier-merel.example/",
   isPublished: true,
   isIndexable: false,
+  acceptsLeads: false,
 };
 
 const validLinks = [

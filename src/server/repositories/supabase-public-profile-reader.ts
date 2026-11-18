@@ -51,6 +51,7 @@ export function makeSupabasePublicProfileReader(client: CarnetClient, mediaOrigi
         phone: row.phone,
         websiteUrl: row.website_url,
         isIndexable: row.is_indexable === true,
+        acceptsLeads: row.accepts_leads === true,
         links: publicLinks,
       });
     },

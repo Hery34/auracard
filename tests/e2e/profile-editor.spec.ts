@@ -494,6 +494,7 @@ test.describe("éditeur de profil : enregistrement des champs (0020, critère 1)
         website_url: values.websiteUrl,
         is_published: false,
         is_indexable: false,
+        accepts_leads: true,
       });
 
     await page.reload();

@@ -6,6 +6,9 @@
  * export function toPreviewProfile(slug: string, fields: EditorFields, links: readonly EditorLink[], images: EditorImages): PublicProfile;
  * // The images are copied as is (updated by the editor after each successful upload or removal, with the `url` of the
  * // action state); the display check (safeImageSrc) stays in toProfileCardView.
+ *
+ * 0032 (« Recevoir des messages »): EditorFields gains `acceptsLeads: boolean` (copied from OwnProfile.acceptsLeads);
+ * toPreviewProfile copies it to PublicProfile.acceptsLeads.
  */
 import { describe, expect, it } from "vitest";
 
@@ -42,6 +45,7 @@ describe("toEditorFields", () => {
       websiteUrl: "",
       isPublished: true,
       isIndexable: false,
+      acceptsLeads: true,
     });
   });
 
@@ -111,6 +115,7 @@ describe("toPreviewProfile", () => {
       phone: null,
       websiteUrl: null,
       isIndexable: true,
+      acceptsLeads: true,
       links: [
         { id: "b", platform: "website", url: "https://b.example/", label: null, position: 0 },
         { id: LINK_IDS[0], platform: "linkedin", url: "https://www.linkedin.com/in/elodie-durand-merel", label: "Profil", position: 1 },
@@ -141,5 +146,18 @@ describe("toPreviewProfile — images (0021)", () => {
 
     expect(preview.avatarUrl).toBeNull();
     expect(preview.bannerUrl).toBe(IMAGES.bannerUrl);
+  });
+});
+
+describe("acceptsLeads (0032)", () => {
+  it("the switch « Recevoir des messages » starts from the stored value", () => {
+    expect(toEditorFields(anOwnProfile({ acceptsLeads: false })).acceptsLeads).toBe(false);
+    expect(toEditorFields(anOwnProfile({ acceptsLeads: true })).acceptsLeads).toBe(true);
+  });
+
+  it("the preview follows the switch", () => {
+    const fields = { ...toEditorFields(anOwnProfile()), acceptsLeads: false };
+
+    expect(toPreviewProfile("elodie-durand-merel", fields, [], NO_IMAGES).acceptsLeads).toBe(false);
   });
 });

@@ -8,6 +8,7 @@ import { env } from "@/server/infrastructure/env";
 import { cryptoIdGenerator } from "@/server/infrastructure/id-generator";
 import { makeSupabaseMediaFolderCleaner } from "@/server/adapters/supabase-media-folder-cleaner";
 import { makeMediaFetcher, MEDIA_FETCH_MAX_BYTES, MEDIA_FETCH_TIMEOUT_MS } from "@/server/adapters/media-fetcher";
+import { makeTurnstileVerifier, TURNSTILE_TIMEOUT_MS } from "@/server/adapters/turnstile";
 import { requestClientAddress } from "@/server/infrastructure/request-client-address";
 import { createAdminClient } from "@/server/infrastructure/supabase/admin";
 import { makeSupabaseAuthGateway } from "@/server/infrastructure/supabase/auth-gateway";
@@ -19,6 +20,8 @@ import { makeSupabaseEventRecorder } from "@/server/repositories/supabase-event-
 import { makeSupabaseDailyAggregateReader } from "@/server/repositories/supabase-daily-aggregate-reader";
 import { makeSupabaseCarnetAccountEraser } from "@/server/repositories/supabase-carnet-account-eraser";
 import { makeSupabaseInstanceAccountRemover } from "@/server/repositories/supabase-instance-account-remover";
+import { makeSupabaseLeadCapturer } from "@/server/repositories/supabase-lead-capturer";
+import { makeSupabaseLeadRepository } from "@/server/repositories/supabase-lead-repository";
 import { makeSupabaseLinkRepository } from "@/server/repositories/supabase-link-repository";
 import { makeSupabaseMediaStorage } from "@/server/adapters/supabase-media-storage";
 import { makeSupabaseMembershipReader } from "@/server/repositories/supabase-membership-reader";
@@ -33,7 +36,9 @@ import { makeSupabaseQrCodeRepository } from "@/server/repositories/supabase-qr-
 import { makeSupabaseQrCodeResolver } from "@/server/repositories/supabase-qr-code-resolver";
 import { makeSupabaseRateLimiter } from "@/server/repositories/supabase-rate-limiter";
 import { makeActivateNfcTag, type ActivateNfcTag } from "@/server/use-cases/activate-nfc-tag";
+import { makeCaptureLead, type CaptureLeadError, type CaptureLeadInput } from "@/server/use-cases/capture-lead";
 import { makeDeleteAccount, type DeleteAccount } from "@/server/use-cases/delete-account";
+import { makeDeleteOwnLead, type DeleteOwnLead } from "@/server/use-cases/delete-own-lead";
 import { makeDownloadVCard } from "@/server/use-cases/download-vcard";
 import { makeGetOwnProfile, type GetOwnProfile } from "@/server/use-cases/get-own-profile";
 import { makeGetOwnQrCode, type GetOwnQrCode } from "@/server/use-cases/get-own-qr-code";
@@ -46,6 +51,7 @@ import {
   type BeaconInput,
   type RecordOutcome,
 } from "@/server/use-cases/record-event";
+import { makeListOwnLeads, type ListOwnLeads } from "@/server/use-cases/list-own-leads";
 import { makeListOwnNfcTags, type ListOwnNfcTags } from "@/server/use-cases/list-own-nfc-tags";
 import { makeRegisterUser, type RegisterUser } from "@/server/use-cases/register-user";
 import { makeReleaseNfcTag, type ReleaseNfcTag } from "@/server/use-cases/release-nfc-tag";
@@ -75,6 +81,8 @@ export type Container = {
   getOwnQrCode: GetOwnQrCode;
   saveQrStyle: SaveQrStyle;
   getOwnStats: GetOwnStats;
+  listOwnLeads: ListOwnLeads;
+  deleteOwnLead: DeleteOwnLead;
   deleteAccount: DeleteAccount;
   qrPrintReady: boolean;
   auth: AuthGateway;
@@ -82,6 +90,9 @@ export type Container = {
 
 /** Public origin (`SITE_URL`, normalized, no trailing slash): `metadataBase` of the root layout. */
 export const siteUrl: string = env.SITE_URL;
+
+/** Public key of the Turnstile widget, read by the public page. */
+export const turnstileSiteKey: string = env.TURNSTILE_SITE_KEY;
 
 /** vCard of the route `/v/{slug}`: rate limit `vcard` on the address of the given request headers, then the file. */
 export type DownloadVCardFromRequest = (slug: string, headers: Headers) => Promise<Result<VCardFile | null, RateLimitError>>;
@@ -100,6 +111,12 @@ export type RecordServerEventFromRequest = (
   headers: Headers,
 ) => Promise<Result<RecordOutcome, "unexpected">>;
 
+/** User-agent and address read from the given request headers. */
+export type CaptureLeadFromRequest = (
+  input: Omit<CaptureLeadInput, "userAgent" | "clientAddress">,
+  headers: Headers,
+) => Promise<Result<{ leadId: string }, CaptureLeadError>>;
+
 export type PublicContainer = {
   getPublicProfile: GetPublicProfile;
   downloadVCard: DownloadVCardFromRequest;
@@ -107,6 +124,7 @@ export type PublicContainer = {
   resolveQrCode: ResolveQrCode;
   recordBeaconEvent: RecordBeaconFromRequest;
   recordServerEvent: RecordServerEventFromRequest;
+  captureLead: CaptureLeadFromRequest;
 };
 
 /** Composition root, built once per request: the server client carries the request cookies. */
@@ -125,6 +143,7 @@ export async function createContainer(): Promise<Container> {
   const membership = makeSupabaseMembershipReader(server);
   const tags = makeSupabaseNfcTagRepository(server);
   const qrCodes = makeSupabaseQrCodeRepository(server);
+  const leads = makeSupabaseLeadRepository(server);
 
   return {
     auth,
@@ -156,6 +175,8 @@ export async function createContainer(): Promise<Container> {
       aggregates: makeSupabaseDailyAggregateReader(server),
       clock: { now: () => new Date() },
     }),
+    listOwnLeads: makeListOwnLeads({ auth, profiles, leads }),
+    deleteOwnLead: makeDeleteOwnLead({ auth, rateLimiter, profiles, leads }),
     deleteAccount: makeDeleteAccount({
       auth,
       rateLimiter,
@@ -175,8 +196,8 @@ function visitorOf(headers: Headers): { userAgent: string | null; clientAddress:
 
 /**
  * Composition root of the public reads: no cookies, usable in static rendering. NFC and QR resolutions are read live
- * on every scan (no cache, no rate limit). The service_role client is created on demand, by the recordings and the
- * vCard rate limit only.
+ * on every scan (no cache, no rate limit). The service_role client is created on demand, by the recordings, the
+ * vCard rate limit and the contact form only.
  */
 export function createPublicContainer(): PublicContainer {
   const anonymous = createPublicSupabaseClient();
@@ -220,6 +241,19 @@ export function createPublicContainer(): PublicContainer {
         events: makeSupabaseEventRecorder(admin),
       });
       return recordServerEvent({ ...event, ...visitorOf(headers) });
+    },
+    captureLead: async (input, headers) => {
+      const admin = createAdminClient();
+      const captureLead = makeCaptureLead({
+        rateLimiter: makeSupabaseRateLimiter(admin, env.RATE_LIMIT_SECRET),
+        challenge: makeTurnstileVerifier({
+          secretKey: env.TURNSTILE_SECRET_KEY,
+          fetch: globalThis.fetch,
+          timeoutMs: TURNSTILE_TIMEOUT_MS,
+        }),
+        leads: makeSupabaseLeadCapturer(admin),
+      });
+      return captureLead({ ...input, ...visitorOf(headers) });
     },
   };
 }

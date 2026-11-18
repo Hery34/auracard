@@ -56,6 +56,10 @@ jobs:
       RATE_LIMIT_SECRET: "0000000000000000000000000000000000000000000000000000000000000000"
       # Same origin as E2E_BASE_URL (Caddy); `https://` is required in production, `pnpm build` and `pnpm start` included.
       SITE_URL: "https://localhost:3443"
+      # Cloudflare Turnstile test keys (0032, decision 6), never the production ones; `pnpm build` validates them too.
+      # The widget loads the real script: the job needs network access to challenges.cloudflare.com.
+      TURNSTILE_SITE_KEY: "1x00000000000000000000AA"
+      TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA"
       # HTTPS in front of `pnpm start` (`.github/e2e.Caddyfile`): the `Secure` session cookies survive in WebKit.
       CADDY_VERSION: "2.11.9"
       # SHA-512 of caddy_2.11.9_linux_amd64.tar.gz, from the official caddy_2.11.9_checksums.txt of the GitHub release.

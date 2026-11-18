@@ -60,10 +60,12 @@ const adminAdapters = {
     "**/repositories/supabase-rate-limiter",
     "**/repositories/supabase-instance-account-remover",
     "**/repositories/supabase-event-recorder",
+    "**/repositories/supabase-lead-capturer",
     "./supabase-profile-registrar",
     "./supabase-rate-limiter",
     "./supabase-instance-account-remover",
     "./supabase-event-recorder",
+    "./supabase-lead-capturer",
   ],
   message: "Adapters of the service_role client are imported by src/server/container.ts only (ADR 0011).",
 };
