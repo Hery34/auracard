@@ -102,12 +102,23 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium-webkit
+      - name: Configure apt retries and timeouts
+        run: |
+          printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' \
+            | sudo tee /etc/apt/apt.conf.d/80-ci-retries > /dev/null
       - name: Install Playwright browsers and system dependencies (3 attempts, 4 min each)
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           for attempt in 1 2 3; do
             if [ "$attempt" -gt 1 ]; then
+              sudo pkill -9 -f '[a]pt-get|[a]pt.systemd|[d]pkg' || true
+              for _ in $(seq 1 30); do
+                if ! command -v fuser >/dev/null 2>&1 || [ -z "$(sudo fuser /var/lib/dpkg/lock-frontend 2>/dev/null)" ]; then
+                  break
+                fi
+                sleep 1
+              done
               sudo dpkg --configure -a || true
             fi
             if timeout -k 10 240 pnpm exec playwright install --with-deps chromium webkit; then
@@ -124,6 +135,13 @@ jobs:
         run: |
           for attempt in 1 2 3; do
             if [ "$attempt" -gt 1 ]; then
+              sudo pkill -9 -f '[a]pt-get|[a]pt.systemd|[d]pkg' || true
+              for _ in $(seq 1 30); do
+                if ! command -v fuser >/dev/null 2>&1 || [ -z "$(sudo fuser /var/lib/dpkg/lock-frontend 2>/dev/null)" ]; then
+                  break
+                fi
+                sleep 1
+              done
               sudo dpkg --configure -a || true
             fi
             if timeout -k 10 240 pnpm exec playwright install-deps chromium webkit; then
