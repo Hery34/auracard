@@ -1,6 +1,6 @@
 # 0043 — CI : réessais de l'installation Playwright
 
-- Statut : review (CI de la PR #27)
+- Statut : done
 - Agent : backend (`.github/`)
 - Phase : 5 (outillage)
 - ADR liées : — ; fiches 0013, 0035
@@ -27,7 +27,7 @@ Les deux étapes d'installation Playwright (`install --with-deps` et `install-de
 2. Le reste du workflow est inchangé ; le run de la PR est vert.
 
 ## Définition de terminé
-- [ ] Pas de test automatisé (configuration CI) : vérification par le run de la PR
+- [x] Pas de test automatisé (configuration CI) : run de la PR #27 vert (installation réussie au 1er essai en 26 s : **le chemin de réessai n'a pas encore été exercé en conditions réelles**, à surveiller au prochain incident du miroir)
 - [x] reviewer : diff relu (orchestrateur)
 - [x] Ligne ajoutée dans `docs/journal.md`
 
