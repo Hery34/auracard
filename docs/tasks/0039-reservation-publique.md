@@ -27,6 +27,9 @@ Depuis le profil public, un visiteur choisit un type de rendez-vous, un jour et 
 - Erreurs à traduire : 22023, P0002, CN001 (créneau pris), CN002 (indisponible), 23514/23502 bruts sur les champs visiteur.
 - `booking_confirmed` doit être refusé par `record-event` et `/api/beacon` (seuls `booking_viewed`, `booking_started` y sont acceptés ; étendre `record-event.test.ts`).
 - Test d'intégration de concurrence réelle (deux transactions, même créneau et tampon) : une réussite, un CN001.
+- *Reporté de 0037* : demander les occupations (`get_public_busy_ranges`) jusqu'à `to + 720 min` (durée max 480 + tampon max 240), sinon un créneau en fin de plage peut être affiché puis refusé (CN001) ; plage affichée limitée en conséquence (≤ 62 j − 12 h, sinon 22023). Les règles du jsonb portent des secondes (`HH:MM:SS`) : l'adaptateur les ramène à `HH:MM` (`SlotRule`).
+- *Reporté de l'audit 0037/0038* : lieu `video` = texte libre → rendu en lien seulement si le schéma est `https:` (jamais `javascript:`), échappé partout ; période demandée par requête courte (une semaine) et limitation de débit sur la lecture des créneaux (coût du calcul).
+- *Reporté de l'audit 0037* : `computeSlots` teste chaque candidat contre toutes les occupations (`busy.some`, O(N × B)) ; avant d'exposer le calcul publiquement, parcours conjoint des débuts et des occupations triés (O(N + B)) ou recherche dichotomique (scheduling + test de performance avec ~18 000 occupations).
 - Adaptateur `book_slot` dédié (avenant ADR 0011), ajouté à `adminAdapters`.
 - Les triggers de plafonds des disponibilités prennent le même verrou par profil (`lock_profile_bookings`) : une réservation attend brièvement pendant une modification des disponibilités ; à prendre en compte dans le test de concurrence, qui couvre aussi les plafonds de disponibilités (deux insertions concurrentes au-delà du plafond : une seule passe ; reporté de l'audit 0036).
 

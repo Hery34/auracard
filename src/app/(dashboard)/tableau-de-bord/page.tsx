@@ -61,6 +61,12 @@ export default async function DashboardPage() {
         >
           Mes statistiques
         </Link>
+        <Link
+          href="/tableau-de-bord/rendez-vous/reglages"
+          className="inline-flex min-h-11 items-center font-medium text-link underline underline-offset-4"
+        >
+          Réglages des rendez-vous
+        </Link>
         <Link href="/tableau-de-bord/compte" className="inline-flex min-h-11 items-center font-medium text-link underline underline-offset-4">
           Mon compte
         </Link>

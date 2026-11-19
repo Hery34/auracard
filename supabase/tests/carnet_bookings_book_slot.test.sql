@@ -53,7 +53,7 @@ begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
 
-select plan(119);
+select plan(152);
 
 create function pg_temp.txt(p_sql text) returns text
 language plpgsql as $$
@@ -757,6 +757,203 @@ select is(
   '(1,1,1)',
   'critère 2 : book_slot rejoué → une réservation, un événement d''outbox, un événement de statistiques'
 );
+
+-- ---------------------------------------------------------------------------
+-- Fiche 0037, point 7 — cas partagés de tests/builders/booking-slot-cases.ts sans pendant SQL jusqu'ici. Même verdict
+-- que computeSlots (décision 4 : cette fonction reste l'autorité). Profils propres (plage 0037 3xxx), sans réservation
+-- antérieure : seules comptent les règles, l'exception extra de PJ et les réservations de ce bloc (aucune ne touche un
+-- cas suivant : chaque refus attendu est un CN002, contrôlé avant le chevauchement).
+--   PK 0…20 (kai-0037c) Asia/Kolkata, lundi 00–02 et 09–12 ; PE 0…21 (eve-0037c) samedi 22:00–24:00 ;
+--   PA7 0…22 (aby-0037c) règles de PA ; PD 0…23 (dan-0037c) dimanche 02:30–05:00 ; PF 0…24 (fay-0037c) dimanche
+--   00:00–02:30 ; PJ 0…25 (joe-0037c) lundi 09:00–10:00 et 10:00–11:30 + extra 8 mars 10:30Z–11:30Z. Europe/Paris sauf PK.
+-- ---------------------------------------------------------------------------
+insert into auth.users (id, email) values
+  ('00000000-0000-4000-8000-003730000001', 'k-carnet-0037c@test.local'),
+  ('00000000-0000-4000-8000-003730000002', 'e-carnet-0037c@test.local'),
+  ('00000000-0000-4000-8000-003730000003', 'a-carnet-0037c@test.local'),
+  ('00000000-0000-4000-8000-003730000004', 'd-carnet-0037c@test.local'),
+  ('00000000-0000-4000-8000-003730000005', 'f-carnet-0037c@test.local'),
+  ('00000000-0000-4000-8000-003730000006', 'j-carnet-0037c@test.local');
+
+insert into platform.project_members (project_id, user_id, role)
+  select p.id, u.id, 'user'
+    from platform.projects p
+   cross join (values ('00000000-0000-4000-8000-003730000001'::uuid), ('00000000-0000-4000-8000-003730000002'::uuid),
+                      ('00000000-0000-4000-8000-003730000003'::uuid), ('00000000-0000-4000-8000-003730000004'::uuid),
+                      ('00000000-0000-4000-8000-003730000005'::uuid), ('00000000-0000-4000-8000-003730000006'::uuid)) as u (id)
+   where p.slug = 'carnet';
+
+insert into carnet.profiles (id, owner_id, slug, display_name, is_published) values
+  ('00000000-0000-4000-8000-003730000020', '00000000-0000-4000-8000-003730000001', 'kai-0037c', 'Kai', true),
+  ('00000000-0000-4000-8000-003730000021', '00000000-0000-4000-8000-003730000002', 'eve-0037c', 'Eve', true),
+  ('00000000-0000-4000-8000-003730000022', '00000000-0000-4000-8000-003730000003', 'aby-0037c', 'Aby', true),
+  ('00000000-0000-4000-8000-003730000023', '00000000-0000-4000-8000-003730000004', 'dan-0037c', 'Dan', true),
+  ('00000000-0000-4000-8000-003730000024', '00000000-0000-4000-8000-003730000005', 'fay-0037c', 'Fay', true),
+  ('00000000-0000-4000-8000-003730000025', '00000000-0000-4000-8000-003730000006', 'joe-0037c', 'Joe', true);
+
+select lives_ok(
+  $$update carnet.profiles set time_zone = 'Asia/Kolkata' where id = '00000000-0000-4000-8000-003730000020'$$,
+  'fixture 0037 : PK est en Asia/Kolkata'
+);
+select lives_ok(
+  $$insert into carnet.event_types (id, profile_id, title, duration_min, buffer_min, min_notice_min, location_kind, location_text, is_active, position) values
+      ('00000000-0000-4000-8000-0037300000e1', '00000000-0000-4000-8000-003730000020', 'Kolkata', 60, 0, 0, 'video', null, true, 0),
+      ('00000000-0000-4000-8000-0037300000e2', '00000000-0000-4000-8000-003730000021', 'Minuit', 60, 0, 0, 'video', null, true, 0),
+      ('00000000-0000-4000-8000-0037300000e3', '00000000-0000-4000-8000-003730000022', 'Atelier', 45, 0, 0, 'video', null, true, 0),
+      ('00000000-0000-4000-8000-0037300000e4', '00000000-0000-4000-8000-003730000023', 'Trou', 30, 0, 0, 'video', null, true, 0),
+      ('00000000-0000-4000-8000-0037300000e5', '00000000-0000-4000-8000-003730000024', 'Fin', 30, 0, 0, 'video', null, true, 0),
+      ('00000000-0000-4000-8000-0037300000e6', '00000000-0000-4000-8000-003730000025', 'Adjacent', 45, 0, 0, 'video', null, true, 0)$$,
+  'fixture 0037 : types k (60 min), e (60 min), a (45 min), d (30 min), f (30 min), j (45 min), tampon et délai 0'
+);
+select lives_ok(
+  $$insert into carnet.availability_rules (profile_id, weekday, start_time, end_time)
+      values ('00000000-0000-4000-8000-003730000020'::uuid, 1, '00:00'::time, '02:00'::time),
+             ('00000000-0000-4000-8000-003730000020', 1, '09:00', '12:00'),
+             ('00000000-0000-4000-8000-003730000021', 6, '22:00', '24:00'),
+             ('00000000-0000-4000-8000-003730000023', 7, '02:30', '05:00'),
+             ('00000000-0000-4000-8000-003730000024', 7, '00:00', '02:30'),
+             ('00000000-0000-4000-8000-003730000025', 1, '09:00', '10:00'),
+             ('00000000-0000-4000-8000-003730000025', 1, '10:00', '11:30')
+      union all
+      select '00000000-0000-4000-8000-003730000022', r.weekday, r.start_time, r.end_time
+        from carnet.availability_rules r where r.profile_id = '00000000-0000-4000-8000-003630000010'$$,
+  'fixture 0037 : règles de PK, PE (fin 24:00), PD, PF, PJ (adjacentes) et PA7 (copie de PA)'
+);
+select lives_ok(
+  $$insert into carnet.availability_exceptions (profile_id, range, kind) values
+      ('00000000-0000-4000-8000-003730000025', tstzrange('2027-03-08 10:30Z', '2027-03-08 11:30Z'), 'extra')$$,
+  'fixture 0037 : exception extra de PJ contiguë à la fin de sa seconde règle'
+);
+select is(
+  pg_temp.txt($$select count(*)::text from carnet.availability_rules where profile_id = '00000000-0000-4000-8000-003730000022'$$),
+  '12',
+  'fixture 0037 : PA7 a les 12 règles de PA'
+);
+
+-- Fiche 0037, critère 1 — Asia/Kolkata (UTC+05:30) : lundi 00–02 et 09–12 ; type k (60 min, délai 0)
+select lives_ok(
+  $$select pg_temp.book('c01', 'kai-0037c', '00000000-0000-4000-8000-0037300000e1', '2027-03-08 03:30Z', '00000000-0000-4000-8000-003730000100', '2027-03-01 12:00Z')$$,
+  '0037 critère 1 : Asia/Kolkata lundi 8 mars 03:30Z = 09:00 IST accepté'
+);
+select throws_ok(
+  $$select pg_temp.book('x', 'kai-0037c', '00000000-0000-4000-8000-0037300000e1', '2027-03-08 04:00Z', '00000000-0000-4000-8000-003730000101', '2027-03-01 12:00Z')$$,
+  'CN002', null, '0037 critère 1 : Asia/Kolkata 04:00Z = 09:30 IST, non aligné sur le pas de 60 min → refusé'
+);
+select lives_ok(
+  $$select pg_temp.book('c03', 'kai-0037c', '00000000-0000-4000-8000-0037300000e1', '2027-03-08 05:30Z', '00000000-0000-4000-8000-003730000102', '2027-03-01 12:00Z')$$,
+  '0037 critère 1 : Asia/Kolkata 05:30Z = 11:00–12:00 IST accepté'
+);
+select throws_ok(
+  $$select pg_temp.book('x', 'kai-0037c', '00000000-0000-4000-8000-0037300000e1', '2027-03-08 06:30Z', '00000000-0000-4000-8000-003730000103', '2027-03-01 12:00Z')$$,
+  'CN002', null, '0037 critère 1 : Asia/Kolkata 06:30Z = 12:00 IST, après la plage → refusé'
+);
+select lives_ok(
+  $$select pg_temp.book('c05', 'kai-0037c', '00000000-0000-4000-8000-0037300000e1', '2027-03-07 18:30Z', '00000000-0000-4000-8000-003730000104', '2027-03-01 12:00Z')$$,
+  '0037 critère 1 : Asia/Kolkata dimanche 7 mars 18:30Z = lundi 00:00 IST accepté (jour ISO du profil)'
+);
+select throws_ok(
+  $$select pg_temp.book('x', 'kai-0037c', '00000000-0000-4000-8000-0037300000e1', '2027-03-07 20:30Z', '00000000-0000-4000-8000-003730000105', '2027-03-01 12:00Z')$$,
+  'CN002', null, '0037 critère 1 : Asia/Kolkata 7 mars 20:30Z = lundi 02:00 IST, après la plage → refusé'
+);
+
+-- Fiche 0037 — règle finissant à 24:00 (samedi 22:00–24:00, Europe/Paris) ; type e (60 min, délai 0)
+select lives_ok(
+  $$select pg_temp.book('c07', 'eve-0037c', '00000000-0000-4000-8000-0037300000e2', '2027-03-06 22:00Z', '00000000-0000-4000-8000-003730000106', '2027-03-01 12:00Z')$$,
+  '0037 : règle 22:00–24:00, samedi 6 mars 22:00Z = 23:00–24:00 CET accepté'
+);
+select throws_ok(
+  $$select pg_temp.book('x', 'eve-0037c', '00000000-0000-4000-8000-0037300000e2', '2027-03-06 23:00Z', '00000000-0000-4000-8000-003730000107', '2027-03-01 12:00Z')$$,
+  'CN002', null, '0037 : règle 22:00–24:00, samedi 6 mars 23:00Z = dimanche 00:00 CET → refusé'
+);
+select lives_ok(
+  $$select pg_temp.book('c09', 'eve-0037c', '00000000-0000-4000-8000-0037300000e2', '2027-10-30 21:00Z', '00000000-0000-4000-8000-003730000108', '2027-10-01 12:00Z')$$,
+  '0037 : règle 22:00–24:00, samedi 30 octobre 21:00Z = 23:00–24:00 CEST accepté'
+);
+select throws_ok(
+  $$select pg_temp.book('x', 'eve-0037c', '00000000-0000-4000-8000-0037300000e2', '2027-10-30 22:00Z', '00000000-0000-4000-8000-003730000109', '2027-10-01 12:00Z')$$,
+  'CN002', null, '0037 : règle 22:00–24:00, samedi 30 octobre 22:00Z = dimanche 00:00 CEST → refusé'
+);
+
+-- Fiche 0037 — pas de 45 min un jour de DST : profil PA7 (règles de PA, sans réservation) ; type a (45 min, délai 0)
+select lives_ok(
+  $$select pg_temp.book('c11', 'aby-0037c', '00000000-0000-4000-8000-0037300000e3', '2027-03-28 00:45Z', '00000000-0000-4000-8000-00373000010a', '2027-03-01 12:00Z')$$,
+  '0037 : e7 (45 min) 28 mars 00:45Z = 01:45 CET → 03:30 CEST accepté (pas en durée réelle)'
+);
+select throws_ok(
+  $$select pg_temp.book('x', 'aby-0037c', '00000000-0000-4000-8000-0037300000e3', '2027-03-28 01:30Z', '00000000-0000-4000-8000-00373000010b', '2027-03-01 12:00Z')$$,
+  'CN002', null, '0037 : e7 28 mars 01:30Z = 03:30 CEST, fin 04:15 CEST au-delà de la plage → refusé'
+);
+select throws_ok(
+  $$select pg_temp.book('x', 'aby-0037c', '00000000-0000-4000-8000-0037300000e3', '2027-03-28 01:00Z', '00000000-0000-4000-8000-00373000010c', '2027-03-01 12:00Z')$$,
+  'CN002', null, '0037 : e7 28 mars 01:00Z = 03:00 CEST (pas compté en heure murale) → refusé'
+);
+select lives_ok(
+  $$select pg_temp.book('c14', 'aby-0037c', '00000000-0000-4000-8000-0037300000e3', '2027-10-31 01:15Z', '00000000-0000-4000-8000-00373000010d', '2027-10-01 12:00Z')$$,
+  '0037 : e7 31 octobre 01:15Z = 02:15 CET (après le recouvrement) accepté'
+);
+
+-- Fiche 0037 — début de règle dans le trou (28/03) ou le recouvrement (31/10) : dimanche 02:30–05:00 ; type d (30 min)
+select lives_ok(
+  $$select pg_temp.book('c15', 'dan-0037c', '00000000-0000-4000-8000-0037300000e4', '2027-03-28 01:30Z', '00000000-0000-4000-8000-00373000010e', '2027-03-01 12:00Z')$$,
+  '0037 : règle 02:30 dans le trou du 28 mars = 01:30Z (décalage d''avant le saut) : 01:30Z accepté'
+);
+select throws_ok(
+  $$select pg_temp.book('x', 'dan-0037c', '00000000-0000-4000-8000-0037300000e4', '2027-03-28 01:00Z', '00000000-0000-4000-8000-00373000010f', '2027-03-01 12:00Z')$$,
+  'CN002', null, '0037 : règle 02:30 dans le trou du 28 mars : 01:00Z (03:00 CEST) avant le début → refusé'
+);
+select throws_ok(
+  $$select pg_temp.book('x', 'dan-0037c', '00000000-0000-4000-8000-0037300000e4', '2027-10-31 00:30Z', '00000000-0000-4000-8000-003730000110', '2027-10-01 12:00Z')$$,
+  'CN002', null, '0037 : règle 02:30 ambiguë le 31 octobre = 02:30 CET (01:30Z, comme PostgreSQL) : 00:30Z refusé'
+);
+select lives_ok(
+  $$select pg_temp.book('c18', 'dan-0037c', '00000000-0000-4000-8000-0037300000e4', '2027-10-31 01:30Z', '00000000-0000-4000-8000-003730000111', '2027-10-01 12:00Z')$$,
+  '0037 : règle 02:30 ambiguë le 31 octobre : 01:30Z accepté'
+);
+
+-- Fiche 0037 — fin de règle dans le trou ou le recouvrement : dimanche 00:00–02:30 ; type f (30 min)
+select lives_ok(
+  $$select pg_temp.book('c19', 'fay-0037c', '00000000-0000-4000-8000-0037300000e5', '2027-03-28 01:00Z', '00000000-0000-4000-8000-003730000112', '2027-03-01 12:00Z')$$,
+  '0037 : fin de règle 02:30 dans le trou du 28 mars = 01:30Z : 01:00Z accepté'
+);
+select throws_ok(
+  $$select pg_temp.book('x', 'fay-0037c', '00000000-0000-4000-8000-0037300000e5', '2027-03-28 01:30Z', '00000000-0000-4000-8000-003730000113', '2027-03-01 12:00Z')$$,
+  'CN002', null, '0037 : fin de règle 02:30 dans le trou du 28 mars : 01:30Z → refusé'
+);
+select lives_ok(
+  $$select pg_temp.book('c21', 'fay-0037c', '00000000-0000-4000-8000-0037300000e5', '2027-10-31 01:00Z', '00000000-0000-4000-8000-003730000114', '2027-10-01 12:00Z')$$,
+  '0037 : fin de règle 02:30 ambiguë le 31 octobre = 01:30Z (comme PostgreSQL) : 01:00Z accepté'
+);
+select throws_ok(
+  $$select pg_temp.book('x', 'fay-0037c', '00000000-0000-4000-8000-0037300000e5', '2027-10-31 01:30Z', '00000000-0000-4000-8000-003730000115', '2027-10-01 12:00Z')$$,
+  'CN002', null, '0037 : fin de règle 02:30 ambiguë le 31 octobre : 01:30Z → refusé'
+);
+
+-- Fiche 0037, critère 2 — plages adjacentes lundi 09:00–10:00 et 10:00–11:30, extra contiguë 8 mars 10:30Z–11:30Z ; type j (45 min)
+select throws_ok(
+  $$select pg_temp.book('x', 'joe-0037c', '00000000-0000-4000-8000-0037300000e6', '2027-03-08 08:45Z', '00000000-0000-4000-8000-003730000116', '2027-03-01 12:00Z')$$,
+  'CN002', null, '0037 critère 2 : plages adjacentes 09–10 et 10–11:30, 45 min : 08:45Z (09:45 CET) à cheval → refusé'
+);
+select lives_ok(
+  $$select pg_temp.book('c24', 'joe-0037c', '00000000-0000-4000-8000-0037300000e6', '2027-03-08 09:00Z', '00000000-0000-4000-8000-003730000117', '2027-03-01 12:00Z')$$,
+  '0037 critère 2 : plages adjacentes : 09:00Z (10:00 CET, début de la seconde plage) accepté'
+);
+select throws_ok(
+  $$select pg_temp.book('x', 'joe-0037c', '00000000-0000-4000-8000-0037300000e6', '2027-03-08 09:30Z', '00000000-0000-4000-8000-003730000118', '2027-03-01 12:00Z')$$,
+  'CN002', null, '0037 critère 2 : plages adjacentes : 09:30Z aligné seulement si l''on fusionnait les plages → refusé'
+);
+select lives_ok(
+  $$select pg_temp.book('c26', 'joe-0037c', '00000000-0000-4000-8000-0037300000e6', '2027-03-08 09:45Z', '00000000-0000-4000-8000-003730000119', '2027-03-01 12:00Z')$$,
+  '0037 critère 2 : plages adjacentes : 09:45Z (10:45–11:30 CET) accepté'
+);
+select throws_ok(
+  $$select pg_temp.book('x', 'joe-0037c', '00000000-0000-4000-8000-0037300000e6', '2027-03-08 10:15Z', '00000000-0000-4000-8000-00373000011a', '2027-03-01 12:00Z')$$,
+  'CN002', null, '0037 critère 2 : extra contiguë à la règle : 10:15Z à cheval sur la règle et l''extra → refusé'
+);
+select lives_ok(
+  $$select pg_temp.book('c28', 'joe-0037c', '00000000-0000-4000-8000-0037300000e6', '2027-03-08 10:30Z', '00000000-0000-4000-8000-00373000011b', '2027-03-01 12:00Z')$$,
+  '0037 critère 2 : extra contiguë à la règle : 10:30Z (début de l''extra) accepté'
+);
+
 
 select * from finish();
 rollback;
