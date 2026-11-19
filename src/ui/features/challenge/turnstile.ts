@@ -1,13 +1,16 @@
+import { BOOKING_CHALLENGE_ACTION } from "@/domain/booking/booking";
 import { LEAD_CHALLENGE_ACTION } from "@/domain/lead/lead";
 
-/** Explicit rendering: the widget is drawn only into the open form (decision 1). */
+/** Explicit rendering: the widget is drawn only into the open form (0032 and 0039, decision 1). */
 const SCRIPT_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 
-type TurnstileOptions = { sitekey: string; theme: "auto"; language: "fr"; action: typeof LEAD_CHALLENGE_ACTION; cData: string };
+export type TurnstileAction = typeof LEAD_CHALLENGE_ACTION | typeof BOOKING_CHALLENGE_ACTION;
 
-/** `action` and `cData` are echoed by siteverify and compared by the server: the token is bound to this profile. */
-export function turnstileRenderOptions(siteKey: string, slug: string): TurnstileOptions {
-  return { sitekey: siteKey, theme: "auto", language: "fr", action: LEAD_CHALLENGE_ACTION, cData: slug };
+type TurnstileOptions = { sitekey: string; theme: "auto"; language: "fr"; action: TurnstileAction; cData: string };
+
+/** `action` and `cData` are echoed by siteverify and compared by the server: the token is bound to this form and profile. */
+export function turnstileRenderOptions(siteKey: string, slug: string, action: TurnstileAction = LEAD_CHALLENGE_ACTION): TurnstileOptions {
+  return { sitekey: siteKey, theme: "auto", language: "fr", action, cData: slug };
 }
 
 export type TurnstileApi = {

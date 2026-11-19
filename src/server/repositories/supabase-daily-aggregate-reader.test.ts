@@ -56,6 +56,25 @@ describe("makeSupabaseDailyAggregateReader", () => {
     );
   });
 
+  it("0039 (regression): booking_viewed, booking_started and booking_confirmed aggregates are read, the stats page keeps working", async () => {
+    const server = fakeSupabaseAdmin({
+      data: [
+        aDailyAggregateRow({ metric: "booking_viewed", value: 4 }),
+        aDailyAggregateRow({ metric: "booking_started", value: 2 }),
+        aDailyAggregateRow({ metric: "booking_confirmed", value: 1 }),
+      ],
+      error: null,
+    });
+
+    expect(await makeSupabaseDailyAggregateReader(server.client).listOwn(PROFILE_ID, RANGE)).toStrictEqual(
+      ok([
+        aDailyAggregate({ metric: "booking_viewed", value: 4 }),
+        aDailyAggregate({ metric: "booking_started", value: 2 }),
+        aDailyAggregate({ metric: "booking_confirmed", value: 1 }),
+      ]),
+    );
+  });
+
   it.each([
     ["2026-11-1"],
     ["18/11/2026"],

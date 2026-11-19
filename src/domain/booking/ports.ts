@@ -1,5 +1,8 @@
+import type { DeviceClass } from "@/domain/analytics/analytics-event";
 import type { AvailabilityException, AvailabilityRule } from "@/domain/booking/availability";
-import type { EventType, EventTypeDraft } from "@/domain/booking/event-type";
+import type { BookingSubmission } from "@/domain/booking/booking";
+import type { EventType, EventTypeDraft, LocationKind } from "@/domain/booking/event-type";
+import type { TimeRange } from "@/domain/booking/time-range";
 import type { TimeZone } from "@/domain/booking/time-zone";
 import type { Result } from "@/domain/shared/result";
 
@@ -53,4 +56,46 @@ export interface AvailabilityRepository {
   ): Promise<Result<AvailabilityException, ExceptionWriteError>>;
   /** Absent or someone else's: success, nothing done. */
   removeException(profileId: string, id: string): Promise<Result<void, "unexpected">>;
+}
+
+/** An active type as the public page shows it; `locationText` is the address of an in_person type, otherwise null. */
+export type PublicEventType = {
+  id: string;
+  title: string;
+  durationMin: number;
+  bufferMin: number;
+  minNoticeMin: number;
+  locationKind: LocationKind;
+  locationText: string | null;
+  position: number;
+};
+
+/** Active types by position, weekly rules "HH:MM" in the profile's time zone. */
+export type PublicBookingPage = { timeZone: TimeZone; eventTypes: PublicEventType[]; rules: AvailabilityRule[] };
+
+/** Confirmed bookings with their buffer and busy exceptions; one-off openings. */
+export type PublicBusyRanges = { busy: TimeRange[]; extra: TimeRange[] };
+
+/** `carnet.get_public_booking_page` / `get_public_busy_ranges` (0036), anonymous client, never service_role. */
+export interface PublicBookingReader {
+  /** null: unknown or unpublished profile. */
+  page(slug: string): Promise<Result<PublicBookingPage | null, "unexpected">>;
+  /** null: unknown or unpublished profile. */
+  busyRanges(slug: string, range: TimeRange): Promise<Result<PublicBusyRanges | null, "unexpected">>;
+}
+
+export type BookSlotCommand = BookingSubmission & { slug: string; deviceClass: DeviceClass };
+
+export type SlotBookerError =
+  | "not_found"
+  | "slot_taken"
+  | "slot_unavailable"
+  | "phone_required"
+  | "invalid_input"
+  | "profile_quota"
+  | "unexpected";
+
+/** `carnet.book_slot` (service_role, ADR 0011): a replay of (slug, key) gives the same id and writes nothing more. */
+export interface SlotBooker {
+  book(command: BookSlotCommand): Promise<Result<{ bookingId: string }, SlotBookerError>>;
 }

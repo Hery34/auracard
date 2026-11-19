@@ -113,6 +113,18 @@ describe("POST /api/beacon", () => {
     expect(mocks.recordBeaconEvent).toHaveBeenCalledTimes(1);
   });
 
+  it.each(["booking_viewed", "booking_started"])("0039 decision 4: %s is accepted (opening of /p/{slug}/rdv, choice of a slot)", async (type) => {
+    await expectSilent204(await post(json(aBeaconBody({ type }))));
+
+    expect(mocks.recordBeaconEvent.mock.calls[0]?.[0]).toStrictEqual({
+      slug: PROFILE_SLUG,
+      id: EVENT_ID,
+      type,
+      source: "direct",
+      linkId: null,
+    });
+  });
+
   it("sendBeacon bodies are accepted whatever the Content-Type (text/plain, application/json, none)", async () => {
     await post(json(aBeaconBody()), { "content-type": "text/plain;charset=UTF-8" });
     await post(json(aBeaconBody()), { "content-type": "application/json" });
@@ -133,6 +145,8 @@ describe("POST /api/beacon", () => {
     ["camelCase linkId instead of link_id", json({ ...aBeaconBody({ type: "link_click" }), linkId: LINK_ID })],
     ["server-only type nfc_scan", json(aBeaconBody({ type: "nfc_scan" }))],
     ["server-only type vcard_download", json(aBeaconBody({ type: "vcard_download" }))],
+    ["0039 decision 4: booking_confirmed (written by book_slot only)", json(aBeaconBody({ type: "booking_confirmed" }))],
+    ["lead_submitted (written by capture_lead only)", json(aBeaconBody({ type: "lead_submitted" }))],
     ["unknown type", json(aBeaconBody({ type: "page_view" }))],
     ["unknown source", json(aBeaconBody({ source: "email" }))],
     ["number as id", JSON.stringify({ ...aBeaconBody(), id: 42 })],

@@ -39,7 +39,7 @@ import { EVENT_ID, LINK_ID } from "../../../tests/builders/analytics";
 const DRAFT = { id: EVENT_ID, type: "profile_view", source: "direct", linkId: null };
 
 describe("value lists (same as the checks of 0028)", () => {
-  it("seven event types, three sources, two device classes", () => {
+  it("0039 (metrics of 0036, decision 10): ten event types, three sources, two device classes", () => {
     expect([...ANALYTICS_EVENT_TYPES]).toStrictEqual([
       "profile_view",
       "nfc_scan",
@@ -48,13 +48,26 @@ describe("value lists (same as the checks of 0028)", () => {
       "link_click",
       "contact_click",
       "lead_submitted",
+      "booking_viewed",
+      "booking_started",
+      "booking_confirmed",
     ]);
     expect([...ANALYTICS_SOURCES]).toStrictEqual(["nfc", "qr", "direct"]);
     expect([...DEVICE_CLASSES]).toStrictEqual(["mobile", "desktop"]);
   });
 
-  it("decision 5: the page sends profile_view, link_click and contact_click only", () => {
-    expect([...BEACON_EVENT_TYPES]).toStrictEqual(["profile_view", "link_click", "contact_click"]);
+  it("decision 5 and 0039 decision 4: the pages send profile_view, link_click, contact_click, booking_viewed and booking_started only", () => {
+    expect([...BEACON_EVENT_TYPES]).toStrictEqual(["profile_view", "link_click", "contact_click", "booking_viewed", "booking_started"]);
+  });
+
+  it("0039 decision 4: booking_confirmed is written by book_slot only, never by the beacon", () => {
+    expect([...BEACON_EVENT_TYPES]).not.toContain("booking_confirmed");
+    expect(parseBeaconEvent({ ...DRAFT, type: "booking_confirmed" })).toStrictEqual(err("invalid_event"));
+  });
+
+  it.each(["booking_viewed", "booking_started"])("0039 decision 4: %s is a beacon event, without link", (type) => {
+    expect(parseBeaconEvent({ ...DRAFT, type })).toStrictEqual(ok({ id: EVENT_ID, type, source: "direct", linkId: null }));
+    expect(parseBeaconEvent({ ...DRAFT, type, linkId: LINK_ID })).toStrictEqual(err("invalid_event"));
   });
 
   it("decisions 3 and 4: the server writes nfc_scan, qr_scan and vcard_download only", () => {

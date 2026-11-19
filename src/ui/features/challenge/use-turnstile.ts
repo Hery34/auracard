@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
-import { loadTurnstile, turnstileRenderOptions, type TurnstileApi } from "@/ui/features/lead/turnstile";
+import { LEAD_CHALLENGE_ACTION } from "@/domain/lead/lead";
+import { loadTurnstile, turnstileRenderOptions, type TurnstileAction, type TurnstileApi } from "@/ui/features/challenge/turnstile";
 
 /**
  * Renders the Turnstile widget into the returned container once it is mounted; Cloudflare adds the hidden
  * `cf-turnstile-response` field there. `reset` asks for a new token (a token is accepted only once).
  */
-export function useTurnstile(siteKey: string, slug: string) {
+export function useTurnstile(siteKey: string, slug: string, action: TurnstileAction = LEAD_CHALLENGE_ACTION) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widget = useRef<{ api: TurnstileApi; id: string } | null>(null);
 
@@ -20,7 +21,7 @@ export function useTurnstile(siteKey: string, slug: string) {
         if (cancelled || container === null) {
           return;
         }
-        const id = api.render(container, turnstileRenderOptions(siteKey, slug));
+        const id = api.render(container, turnstileRenderOptions(siteKey, slug, action));
         if (id !== undefined) {
           widget.current = { api, id };
         }
@@ -31,7 +32,7 @@ export function useTurnstile(siteKey: string, slug: string) {
       widget.current?.api.remove(widget.current.id);
       widget.current = null;
     };
-  }, [siteKey, slug]);
+  }, [siteKey, slug, action]);
 
   const reset = useCallback(() => {
     widget.current?.api.reset(widget.current.id);

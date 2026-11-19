@@ -9,6 +9,9 @@ export const ANALYTICS_EVENT_TYPES = [
   "link_click",
   "contact_click",
   "lead_submitted",
+  "booking_viewed",
+  "booking_started",
+  "booking_confirmed",
 ] as const;
 export type AnalyticsEventType = (typeof ANALYTICS_EVENT_TYPES)[number];
 
@@ -18,8 +21,8 @@ export type AnalyticsSource = (typeof ANALYTICS_SOURCES)[number];
 export const DEVICE_CLASSES = ["mobile", "desktop"] as const;
 export type DeviceClass = (typeof DEVICE_CLASSES)[number];
 
-/** Sent by the public page. */
-export const BEACON_EVENT_TYPES = ["profile_view", "link_click", "contact_click"] as const;
+/** Sent by the public pages; `booking_confirmed` is written by `book_slot` only. */
+export const BEACON_EVENT_TYPES = ["profile_view", "link_click", "contact_click", "booking_viewed", "booking_started"] as const;
 export type BeaconEventType = (typeof BEACON_EVENT_TYPES)[number];
 
 /** Written by the routes `/t`, `/q` and `/v`. */

@@ -23,6 +23,7 @@ Le propriétaire consulte ses rendez-vous à venir et passés sur `/tableau-de-b
 ## Notes héritées de 0036 (revue, 18/11/2026)
 - Lecture des réservations du propriétaire : pagination testée au-delà de 100 ou fonction jsonb (règle « Limite de lignes PostgREST »).
 - `cancel_own_booking` renvoie void, idempotente ; sans effet sur un rendez-vous déjà commencé.
+- *Reporté de l'audit 0039 (Hery)* : **annulation groupée** — le propriétaire sélectionne plusieurs réservations (ex. toutes celles créées dans un intervalle) et les annule en une fois (idempotent, un événement outbox par réservation).
 
 ## Critères d'acceptation
 1. Ordre, pagination au-delà de 100, fuseau correct.

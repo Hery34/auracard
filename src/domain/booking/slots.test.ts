@@ -694,3 +694,89 @@ describe("computeSlots — point 7: bounded cost (audit MEDIUM)", () => {
     });
   });
 });
+
+/**
+ * Fiche 0039 (reported from the 0037 audit): before the computation is exposed publicly, each candidate is no longer
+ * tested against every occupation (`busy.some`, O(N × B)); sorted starts and occupations are walked together
+ * (O(N + B)) or searched by dichotomy. Same results, any order of `busy`, nested or overlapping occupations included.
+ */
+describe("computeSlots — 0039: occupations walked in O(N + B) (audit 0037)", () => {
+  /**
+   * Without occupations the same query takes ~15 ms locally; a joint walk adds a sort and one pass (tens of ms, a few
+   * times more on CI); O(N × B) takes ~2 s locally. 250 ms separates both on any machine.
+   */
+  const BUDGET_MS = 250;
+  const FROM = "2027-03-01T00:00:00Z";
+  /** FROM + 62 days. */
+  const TO = "2027-05-02T00:00:00Z";
+  const FIVE_MINUTES = aSlotEventType({ durationMin: 5 });
+  const half = MAX_SLOT_CANDIDATES / 2;
+
+  /**
+   * MAX_SLOT_CANDIDATES candidates on two alignments one minute apart: A_i = FROM + 5i min, B_i = FROM + 5i + 1 min
+   * (i < 10 000), every one within notice and horizon.
+   */
+  const extras: TimeRange[] = [
+    { start: instant(FROM), end: instant(FROM).add({ minutes: 5 * half }) },
+    { start: instant(FROM).add({ minutes: 1 }), end: instant(FROM).add({ minutes: 1 + 5 * half }) },
+  ];
+
+  /**
+   * Two 30-second occupations in the first minute of every 10 minutes over the 62 days (17 856 ranges, given in
+   * reverse order): minute 10j blocks A_2j and B_2j−1; A_odd and B_even remain.
+   */
+  function occupations(): TimeRange[] {
+    const ranges: TimeRange[] = [];
+    for (let at = instant(FROM); Temporal.Instant.compare(at, instant(TO)) < 0; at = at.add({ minutes: 10 })) {
+      ranges.push({ start: at, end: at.add({ seconds: 30 }) }, { start: at.add({ seconds: 30 }), end: at.add({ seconds: 60 }) });
+    }
+    return ranges.reverse();
+  }
+
+  function expectedStarts(): string[] {
+    return Array.from({ length: half }, (_, i) =>
+      instant(FROM)
+        .add({ minutes: 5 * i + (i % 2 === 0 ? 1 : 0) })
+        .toString(),
+    );
+  }
+
+  it(
+    "~18 000 occupations × 20 000 candidates → under budget, exactly the free starts",
+    () => {
+      const busy = occupations();
+      expect(busy.length).toBeGreaterThanOrEqual(17_800);
+      const query = aSlotQuery({ eventType: FIVE_MINUTES, extra: extras, busy, now: instant(FROM), range: range(FROM, TO) });
+
+      const started = performance.now();
+      const result = computeSlots(query);
+      const elapsedMs = performance.now() - started;
+
+      expect(result.ok).toBe(true);
+      expect(result.ok ? starts(result.value) : []).toStrictEqual(expectedStarts());
+      expect(elapsedMs).toBeLessThan(BUDGET_MS);
+    },
+    60_000,
+  );
+
+  it("nested, overlapping and unsorted occupations: the same verdict as a check against each one", () => {
+    const busy = [
+      range("2027-03-03T10:50:00Z", "2027-03-03T12:00:00Z"),
+      range("2027-03-03T08:00:00Z", "2027-03-03T10:00:00Z"),
+      range("2027-03-03T08:30:00Z", "2027-03-03T08:45:00Z"),
+      range("2027-03-03T09:55:00Z", "2027-03-03T10:20:00Z"),
+    ];
+    const query = aSlotQuery({
+      timeZone: zone("UTC"),
+      eventType: aSlotEventType({ durationMin: 30, bufferMin: 10 }),
+      rules: [rule(3, "07:00", "13:00")],
+      busy,
+      now: instant(T_MAR),
+      range: range("2027-03-03T00:00:00Z", "2027-03-04T00:00:00Z"),
+    });
+
+    // 09:00 and 09:30 fall inside [08:00, 10:00) although the latest occupation starting before them, [08:30, 08:45),
+    // has ended: a walk must keep the furthest end seen. 12:00 touches [10:50, 12:00) (contiguity allowed).
+    expect(starts(slotsOf(query))).toStrictEqual(["2027-03-03T07:00:00Z", "2027-03-03T12:00:00Z", "2027-03-03T12:30:00Z"]);
+  });
+});

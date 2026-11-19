@@ -51,9 +51,8 @@ export function computeSlots(query: SlotQuery): Result<readonly Slot[], "invalid
   if (candidates === null) {
     return err("too_many_slots");
   }
-  const isBookable = bookableFilter(query, bounds.step);
-  const starts = [...candidates].filter(([start, onItsDay]) => onItsDay && isBookable(start)).map(([start]) => start);
-  return ok(starts.sort(compareBigInt).map((start) => toSlot(start, bounds.step)));
+  const starts = [...candidates].filter(([, onItsDay]) => onItsDay).map(([start]) => start);
+  return ok(freeStarts(starts.sort(compareBigInt), query, bounds.step).map((start) => toSlot(start, bounds.step)));
 }
 
 function isValidRange({ start, end }: TimeRange): boolean {
@@ -128,16 +127,35 @@ function collectCandidates(
   return candidates;
 }
 
-function bookableFilter({ eventType, busy, now }: SlotQuery, step: bigint): (start: bigint) => boolean {
+/**
+ * Sorted starts within notice and horizon whose [start, start + duration + buffer) overlaps no busy range. Busy ranges
+ * are sorted once and walked with the starts (O(N + B) after the sorts): the furthest end among the ranges starting
+ * before the occupied end decides, which covers nested and overlapping ranges.
+ */
+function freeStarts(sortedStarts: readonly bigint[], { eventType, busy, now }: SlotQuery, step: bigint): bigint[] {
   const nowNs = now.epochNanoseconds;
   const earliest = nowNs + BigInt(eventType.minNoticeMin) * NS_PER_MINUTE;
   const latest = nowNs + BigInt(BOOKING_HORIZON_HOURS) * NS_PER_HOUR;
   const occupiedLength = step + BigInt(eventType.bufferMin) * NS_PER_MINUTE;
-  const busyNs = busy.map((range) => ({ start: range.start.epochNanoseconds, end: range.end.epochNanoseconds }));
-  return (start) =>
-    start >= earliest &&
-    start <= latest &&
-    !busyNs.some((range) => range.start < start + occupiedLength && start < range.end);
+  const ranges = busy
+    .map((range) => ({ start: range.start.epochNanoseconds, end: range.end.epochNanoseconds }))
+    .sort((a, b) => compareBigInt(a.start, b.start));
+  const free: bigint[] = [];
+  let next = 0;
+  let furthestEnd: bigint | null = null;
+  for (const start of sortedStarts) {
+    if (start < earliest || start > latest) {
+      continue;
+    }
+    const occupiedEnd = start + occupiedLength;
+    for (let range = ranges[next]; range !== undefined && range.start < occupiedEnd; range = ranges[++next]) {
+      furthestEnd = furthestEnd === null ? range.end : maxBigInt(furthestEnd, range.end);
+    }
+    if (furthestEnd === null || furthestEnd <= start) {
+      free.push(start);
+    }
+  }
+  return free;
 }
 
 function toSlot(start: bigint, step: bigint): Slot {

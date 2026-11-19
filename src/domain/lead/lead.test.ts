@@ -5,7 +5,7 @@
  * //   ADR 0012 §2). The schema and the parsing live in src/server/actions/lead-schemas.ts.
  * export const LEAD_TEXT_MAX_LENGTH = { name: 100, email: 254, message: 2000 } as const;
  * export const LEAD_INVALID_FIELDS = ["name", "email", "message", "consent", "idempotencyKey"] as const;
- * // Decision 14: the one action emitted by the widget (src/ui/features/lead/turnstile.ts) and compared by the use case.
+ * // Decision 14: the one action emitted by the widget (src/ui/features/challenge/turnstile.ts) and compared by the use case.
  * export const LEAD_CHALLENGE_ACTION = "lead";
  * export type LeadInvalidField = (typeof LEAD_INVALID_FIELDS)[number];
  * export type LeadSubmission = { name: string; email: string; message: string; idempotencyKey: string };

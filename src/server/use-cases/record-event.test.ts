@@ -109,6 +109,18 @@ describe("recordBeaconEvent", () => {
     ]);
   });
 
+  it.each(["booking_viewed", "booking_started"])(
+    "0039 decision 4: %s (opening of /p/{slug}/rdv, choice of a slot) is recorded like a view",
+    async (type) => {
+      const { log, recordBeaconEvent } = beaconHarness();
+
+      expect(await recordBeaconEvent(aBeaconInput({ type }))).toStrictEqual(ok("recorded"));
+      expect(log.inputsOf("events", "record")).toStrictEqual([
+        { id: EVENT_ID, slug: PROFILE_SLUG, type, source: "direct", linkId: null, deviceClass: "mobile" },
+      ]);
+    },
+  );
+
   it.each(BOT_USER_AGENTS)("criterion 3: %s → ignored, no counter, no write", async (_label, userAgent) => {
     const { log, recordBeaconEvent } = beaconHarness();
 
@@ -168,6 +180,7 @@ describe("recordBeaconEvent", () => {
     ["a server-only type (nfc_scan)", { type: "nfc_scan" }],
     ["a server-only type (vcard_download)", { type: "vcard_download" }],
     ["lead_submitted (written by capture_lead only)", { type: "lead_submitted" }],
+    ["booking_confirmed (0039: written by book_slot only)", { type: "booking_confirmed" }],
     ["an unknown source", { source: "email" }],
     ["link_click without link", { type: "link_click" }],
     ["profile_view with a link", { linkId: LINK_ID }],

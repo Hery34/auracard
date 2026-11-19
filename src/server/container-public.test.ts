@@ -164,11 +164,14 @@ beforeEach(() => {
 });
 
 describe("createPublicContainer — wiring", () => {
-  it("decision 7, 0025, 0029, 0032: exposes getPublicProfile, downloadVCard, resolveNfcTag, resolveQrCode, recordBeaconEvent, recordServerEvent and captureLead only", () => {
+  it("decision 7, 0025, 0029, 0032, 0039: exposes getPublicProfile, downloadVCard, resolveNfcTag, resolveQrCode, recordBeaconEvent, recordServerEvent, captureLead, getPublicBookingPage, listPublicSlots and bookSlot only", () => {
     expect(Object.keys(createPublicContainer()).sort()).toStrictEqual([
+      "bookSlot",
       "captureLead",
       "downloadVCard",
+      "getPublicBookingPage",
       "getPublicProfile",
+      "listPublicSlots",
       "recordBeaconEvent",
       "recordServerEvent",
       "resolveNfcTag",

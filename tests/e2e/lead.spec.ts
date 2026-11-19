@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { legalBasisPattern } from "../builders/privacy";
 import { freshAddress, signIn } from "./helpers/nfc";
 import { minutesAgo, refusingOrigin, seedLeads, storedLeads } from "./helpers/leads";
 import { FULL_PROFILE, createProfile, type ProfileFixture } from "./helpers/public-profile";
@@ -399,6 +400,7 @@ test.describe("formulaire de contact : mention RGPD et accessibilité (décision
       await expect(form).toContainText(sentence);
     }
     await expect(form).toContainText(new RegExp(`leur traitement auprès de ${FULL_PROFILE.display_name}\\.`));
+    await expect(form).toContainText(legalBasisPattern(FULL_PROFILE.display_name));
     await expect(consent(page)).toBeVisible();
     await expect(consent(page)).not.toBeChecked();
     const required = (await consent(page).getAttribute("required")) !== null || (await consent(page).getAttribute("aria-required")) === "true";
