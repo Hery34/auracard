@@ -6,11 +6,13 @@ import type { PublicProfile } from "@/domain/profile/profile";
 import { createPublicContainer, turnstileSiteKey } from "@/server/container";
 import { AudienceNotice } from "@/ui/features/analytics/audience-notice";
 import { ProfileBeacon } from "@/ui/features/analytics/profile-beacon";
+import { BOOK_LINK_LABEL } from "@/ui/features/booking/public-messages";
 import { LeadSection } from "@/ui/features/lead/lead-section";
 import { MEDIA_ORIGIN } from "@/ui/features/profile/media-origin";
 import { ProfileCard } from "@/ui/features/profile/profile-card";
 import { toProfileCardView } from "@/ui/features/profile/profile-card-view";
 import { safeImageSrc } from "@/ui/features/profile/safe-image-src";
+import { buttonVariants } from "@/ui/primitives/button";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -39,6 +41,15 @@ const loadProfile = cache(async (slug: string): Promise<PublicProfile> => {
   return result.value;
 });
 
+/** The link is shown when the booking page exists (at least one active type); same cache tag as the profile. */
+async function acceptsBookings(slug: string): Promise<boolean> {
+  const result = await createPublicContainer().getPublicBookingPage(slug);
+  if (!result.ok && result.error === "unexpected") {
+    throw new Error("public booking page: read failed");
+  }
+  return result.ok;
+}
+
 /** Defining `openGraph` here replaces the root one: without avatar, the brand image (`src/app/opengraph-image.png`) is restated. */
 const DEFAULT_OPEN_GRAPH_IMAGE = { url: "/opengraph-image.png", width: 1200, height: 630, alt: "AuraCard" };
 
@@ -61,9 +72,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PublicProfilePage({ params }: Props) {
   const profile = await loadProfile((await params).slug);
+  const bookable = await acceptsBookings(profile.slug);
   return (
     <main data-theme="system" className="mx-auto w-full max-w-md px-4 py-8">
       <ProfileCard view={toProfileCardView(profile, MEDIA_ORIGIN)} />
+      {bookable && (
+        <a href={`/p/${profile.slug}/rdv`} className={buttonVariants({ className: "mt-8 w-full" })}>
+          {BOOK_LINK_LABEL}
+        </a>
+      )}
       {profile.acceptsLeads && <LeadSection slug={profile.slug} ownerName={profile.displayName} siteKey={turnstileSiteKey} />}
       <AudienceNotice />
       <ProfileBeacon slug={profile.slug} />

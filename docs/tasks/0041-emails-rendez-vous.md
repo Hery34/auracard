@@ -23,6 +23,7 @@ n8n envoie, à partir de l'outbox, les e-mails de confirmation, d'annulation, de
 - `cancel_token` **jamais** dans l'e-mail au propriétaire (même événement `booking.confirmed` pour les deux messages).
 - Fuseau renvoyé = celui du propriétaire : `.ics` en UTC.
 - *Reporté de l'audit 0038* : `location_text` (texte libre) échappé dans les e-mails et le `.ics` (CRLF neutralisé, pliage RFC 5545) ; lien de visio rendu cliquable seulement s'il est en `https:`.
+- *Reporté de l'audit 0039 (MOYEN)* : chaque réservation envoie un e-mail vers une adresse non vérifiée → contenu minimal, titre échappé et tronqué, aucun lien hors annulation/report ; plafond global d'envoi par profil et par destinataire (empreinte de l'e-mail) ; surveillance des rebonds.
 - n8n : désactiver ou élaguer la sauvegarde des exécutions réussies (données visiteur, jeton).
 
 ## Critères d'acceptation

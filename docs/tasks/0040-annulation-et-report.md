@@ -24,6 +24,9 @@ Le visiteur annule ou reporte son rendez-vous depuis le lien reçu par e-mail (`
 - Au rejeu du report, le jeton renvoyé est null ; les anciens jetons deviennent inopérants après un report.
 - `get_public_busy_ranges` compte la propre réservation du visiteur comme occupée, alors que le SQL l'ignore au report : des créneaux valides seront masqués (acceptable).
 - *Reporté de 0037* : le calcul des créneaux d'un report doit ignorer la réservation reportée (comme `assert_bookable_slot` avec `p_ignore_booking_id`), or `get_public_busy_ranges` ne porte pas d'identifiants : prévoir une lecture par jeton des occupations qui exclut la réservation concernée (db-architect), ou accepter de masquer ces créneaux.
+- ~~Semaine DST de 169 h~~ : traité en 0039 (point 8).
+- *Reporté de l'audit 0039 (MOYEN)* : un report crée une réservation `created_at = now()` hors quota (`CN005`) → avec 20 jetons, un attaquant garde la fenêtre de 23 h pleine indéfiniment. Choisir : compter sur la date de création de la réservation d'origine (chaîne `rescheduled_from`), exclure les reports du comptage, ou soumettre le report au garde public et à `CN005` (à arbitrer par Hery).
+- *Reporté de l'audit 0039 (FAIBLE)* : `list-public-slots` — si `min(to, horizon)` ≤ maintenant, la plage d'occupations est inversée (erreur SQL → `unexpected`) : renvoyer `ok([])`.
 - Limite de débit par adresse **et** par jeton haché (reports en boucle = e-mails en boucle) ; actions en POST ; `Referrer-Policy: no-referrer` ; aucune journalisation des URL contenant le jeton.
 
 ## Critères d'acceptation

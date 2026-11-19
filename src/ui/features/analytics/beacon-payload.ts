@@ -30,6 +30,11 @@ export function viewPayload(slug: string, id: string, source: AnalyticsSource): 
   return { slug, id, type: "profile_view", source };
 }
 
+/** The booking page counts its visits as `direct` (0039, decision 7). */
+export function bookingPayload(slug: string, id: string, type: "booking_viewed" | "booking_started"): BeaconPayload {
+  return { slug, id, type, source: "direct" };
+}
+
 export function clickPayload(slug: string, id: string, source: AnalyticsSource, target: BeaconTarget): BeaconPayload {
   return target.kind === "link"
     ? { slug, id, type: "link_click", source, link_id: target.linkId }

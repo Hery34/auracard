@@ -31,7 +31,9 @@ export function leadPrivacyNotice(ownerName: string): string {
     `seul destinataire. Ils sont conservés 12 mois au plus, puis supprimés. ` +
     `La vérification anti-robot est assurée par Cloudflare ; l’e-mail qui prévient ${ownerName} est envoyé par Infomaniak. ` +
     `Vous pouvez demander l’accès à vos coordonnées, leur effacement ou vous opposer à leur traitement auprès de ${ownerName}. ` +
-    `Cloudflare peut traiter des données techniques hors de l’Union européenne.`
+    `Cloudflare peut traiter des données techniques hors de l’Union européenne. ` +
+    `Base légale : votre consentement, que vous pouvez retirer à tout moment auprès de ${ownerName}. ` +
+    `Vous pouvez introduire une réclamation auprès de la CNIL.`
   );
 }
 

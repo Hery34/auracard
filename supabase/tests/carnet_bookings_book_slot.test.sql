@@ -558,6 +558,12 @@ select throws_ok(
 );
 set local timezone = 'UTC';
 
+-- Fiche 0039, point 8 — quota de 20 réservations créées en 23 h par profil (CN005, couvert par
+-- carnet_bookings_profile_quota.test.sql) : les réservations de PA faites jusqu'ici sont vieillies d'un jour pour que
+-- la suite, toujours à T_MAR, teste le créneau et non le quota.
+update carnet.bookings set created_at = created_at - interval '1 day'
+ where profile_id = '00000000-0000-4000-8000-003630000010';
+
 -- ---------------------------------------------------------------------------
 -- Critère 5 — Europe/Paris, passage à l'heure d'été (dimanche 28 mars 2027) ; e1 : 60 min, sans tampon
 -- ---------------------------------------------------------------------------

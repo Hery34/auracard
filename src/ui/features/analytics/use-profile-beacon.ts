@@ -9,17 +9,8 @@ import {
   sourceOf,
   viewPayload,
   withoutSource,
-  type BeaconPayload,
 } from "@/ui/features/analytics/beacon-payload";
-
-const BEACON_PATH = "/api/beacon";
-
-/** A failed measurement (missing API, exception) never reaches React. */
-function send(payloadFor: (id: string) => BeaconPayload): void {
-  try {
-    navigator.sendBeacon(BEACON_PATH, JSON.stringify(payloadFor(crypto.randomUUID())));
-  } catch {}
-}
+import { sendBeacon as send } from "@/ui/features/analytics/send-beacon";
 
 /** Reads `?s=` once, removes it from the address bar, then counts the visit. No cookie, no storage. */
 function startVisit(slug: string): AnalyticsSource {

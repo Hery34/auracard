@@ -14,6 +14,8 @@
  * // retention (12 months), Cloudflare for the anti-robot check, Infomaniak for the e-mail sent to the owner;
  * // decision 14, completed with: « Vous pouvez demander l'accès à vos coordonnées, leur effacement ou vous opposer à
  * // leur traitement auprès de <owner>. Cloudflare peut traiter des données techniques hors de l'Union européenne. »
+ * // 0039 point 8: « Base légale : votre consentement, que vous pouvez retirer à tout moment auprès de <owner>. Vous
+ * // pouvez introduire une réclamation auprès de la CNIL. »
  * export function leadPrivacyNotice(ownerName: string): string;
  * export function leadConsentLabel(ownerName: string): string;   // label of the mandatory checkbox, « J'accepte … »
  * export const NO_LEADS_MESSAGE: string;              // « Aucun message » …
@@ -40,6 +42,8 @@ import {
   leadConsentLabel,
   leadPrivacyNotice,
 } from "@/ui/features/lead/messages";
+
+import { legalBasisPattern } from "../../../../tests/builders/privacy";
 
 const GENERIC_ERROR = "Une erreur est survenue, réessayez.";
 const OWNER = "Élodie Durand-Mérel";
@@ -82,6 +86,10 @@ describe("contact form texts (decisions 1 and 3)", () => {
     for (const sentence of rightsSentences(OWNER)) {
       expect(notice).toMatch(sentence);
     }
+  });
+
+  it("0039 point 8: the notice states the legal basis (consent, withdrawable from the owner) and the complaint to the CNIL", () => {
+    expect(leadPrivacyNotice(OWNER)).toMatch(legalBasisPattern(OWNER));
   });
 
   it("decision 3: the consent label starts with « J'accepte » and names the owner", () => {

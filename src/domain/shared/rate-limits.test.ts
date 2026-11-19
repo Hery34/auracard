@@ -43,9 +43,27 @@ describe("RATE_LIMITS", () => {
     expect(RATE_LIMITS["lead-profile"]).toStrictEqual({ limit: 50, windowSeconds: 82800 });
   });
 
-  it("defines exactly the ten scopes signup, login, login-account, profile-write, vcard, nfc-activate, beacon, scan, lead and lead-profile", () => {
+  it("booking: 5 booking attempts per address per hour (0039, decision 1)", () => {
+    expect(RATE_LIMITS.booking).toStrictEqual({ limit: 5, windowSeconds: 3600 });
+  });
+
+  it("0039 point 8: no booking-profile scope — the profile quota counts successful bookings only, in book_slot (CN005)", () => {
+    expect(Object.keys(RATE_LIMITS)).not.toContain("booking-profile");
+  });
+
+  it("booking-slots: 60 slot reads per address per hour (0039, audit 0037/0038: cost of the computation)", () => {
+    expect(RATE_LIMITS["booking-slots"]).toStrictEqual({ limit: 60, windowSeconds: 3600 });
+  });
+
+  it("0039: the longest window stays 23 hours, under the purge of rate_limits (0010)", () => {
+    expect(LONGEST_RATE_LIMIT_WINDOW_SECONDS).toBe(82800);
+  });
+
+  it("defines exactly the twelve scopes signup, login, login-account, profile-write, vcard, nfc-activate, beacon, scan, lead, lead-profile, booking and booking-slots", () => {
     expect(Object.keys(RATE_LIMITS).sort()).toStrictEqual([
       "beacon",
+      "booking",
+      "booking-slots",
       "lead",
       "lead-profile",
       "login",

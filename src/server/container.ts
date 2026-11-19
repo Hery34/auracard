@@ -1,10 +1,12 @@
 import { updateTag } from "next/cache";
 
 import type { ServerEventType } from "@/domain/analytics/analytics-event";
+import type { Slot } from "@/domain/booking/slots";
 import { publicMediaUrl } from "@/domain/profile/profile-image";
 import type { Result } from "@/domain/shared/result";
 import type { AuthGateway } from "@/domain/shared/ports/auth-gateway";
 import { env } from "@/server/infrastructure/env";
+import { logInfrastructureError } from "@/server/infrastructure/logger";
 import { cryptoIdGenerator } from "@/server/infrastructure/id-generator";
 import { makeSupabaseMediaFolderCleaner } from "@/server/adapters/supabase-media-folder-cleaner";
 import { makeMediaFetcher, MEDIA_FETCH_MAX_BYTES, MEDIA_FETCH_TIMEOUT_MS } from "@/server/adapters/media-fetcher";
@@ -14,15 +16,28 @@ import { createAdminClient } from "@/server/infrastructure/supabase/admin";
 import { makeSupabaseAuthGateway } from "@/server/infrastructure/supabase/auth-gateway";
 import { createPublicSupabaseClient } from "@/server/infrastructure/supabase/public";
 import { createServerSupabaseClient } from "@/server/infrastructure/supabase/server";
+import { makeCachedPublicBookingReader } from "@/server/booking/repositories/cached-public-booking-reader";
 import { makeSupabaseAvailabilityRepository } from "@/server/booking/repositories/supabase-availability-repository";
 import { makeSupabaseEventTypeRepository } from "@/server/booking/repositories/supabase-event-type-repository";
+import { makeSupabasePublicBookingReader } from "@/server/booking/repositories/supabase-public-booking-reader";
+import { makeSupabaseSlotBooker } from "@/server/booking/repositories/supabase-slot-booker";
 import {
   makeAddAvailabilityException,
   type AddAvailabilityException,
 } from "@/server/booking/use-cases/add-availability-exception";
+import { makeBookSlot, type BookSlotError, type BookSlotInput } from "@/server/booking/use-cases/book-slot";
 import { makeCreateEventType, type CreateEventType } from "@/server/booking/use-cases/create-event-type";
 import { makeDeleteEventType, type DeleteEventType } from "@/server/booking/use-cases/delete-event-type";
 import { makeGetBookingSettings, type GetBookingSettings } from "@/server/booking/use-cases/get-booking-settings";
+import {
+  makeGetPublicBookingPage,
+  type GetPublicBookingPage,
+} from "@/server/booking/use-cases/get-public-booking-page";
+import {
+  makeListPublicSlots,
+  type ListPublicSlotsError,
+  type ListPublicSlotsInput,
+} from "@/server/booking/use-cases/list-public-slots";
 import {
   makeRemoveAvailabilityException,
   type RemoveAvailabilityException,
@@ -148,6 +163,18 @@ export type CaptureLeadFromRequest = (
   headers: Headers,
 ) => Promise<Result<{ leadId: string }, CaptureLeadError>>;
 
+/** Address read from the given request headers. */
+export type ListPublicSlotsFromRequest = (
+  input: Omit<ListPublicSlotsInput, "clientAddress">,
+  headers: Headers,
+) => Promise<Result<readonly Slot[], ListPublicSlotsError>>;
+
+/** User-agent and address read from the given request headers. */
+export type BookSlotFromRequest = (
+  input: Omit<BookSlotInput, "userAgent" | "clientAddress">,
+  headers: Headers,
+) => Promise<Result<{ bookingId: string }, BookSlotError>>;
+
 export type PublicContainer = {
   getPublicProfile: GetPublicProfile;
   downloadVCard: DownloadVCardFromRequest;
@@ -156,6 +183,9 @@ export type PublicContainer = {
   recordBeaconEvent: RecordBeaconFromRequest;
   recordServerEvent: RecordServerEventFromRequest;
   captureLead: CaptureLeadFromRequest;
+  getPublicBookingPage: GetPublicBookingPage;
+  listPublicSlots: ListPublicSlotsFromRequest;
+  bookSlot: BookSlotFromRequest;
 };
 
 /** Composition root, built once per request: the server client carries the request cookies. */
@@ -178,6 +208,26 @@ export async function createContainer(): Promise<Container> {
   const eventTypes = makeSupabaseEventTypeRepository(server);
   const availability = makeSupabaseAvailabilityRepository(server);
   const clock = { now: () => new Date() };
+
+  /**
+   * The public booking page (types, rules, time zone) is cached under the profile's tag: a successful settings write
+   * expires it, read-your-own-writes, and so does the « Prendre rendez-vous » link of /p/{slug}. A failed re-read of
+   * the profile leaves the cache to expire on its own: logged, the write still succeeds.
+   */
+  function expiringProfileCache<A, T, E>(useCase: (input: A) => Promise<Result<T, E>>): (input: A) => Promise<Result<T, E>> {
+    return async (input) => {
+      const result = await useCase(input);
+      if (result.ok) {
+        const own = await profiles.getOwn();
+        if (!own.ok) {
+          logInfrastructureError("profile_cache_expiry", own.error);
+        } else if (own.value !== null) {
+          updateTag(profileCacheTag(own.value.slug));
+        }
+      }
+      return result;
+    };
+  }
 
   return {
     auth,
@@ -221,17 +271,27 @@ export async function createContainer(): Promise<Container> {
       profileCache: { expire: (slug) => updateTag(profileCacheTag(slug)) },
     }),
     getBookingSettings: makeGetBookingSettings({ auth, profiles, eventTypes, availability, clock }),
-    saveTimeZone: makeSaveTimeZone({ auth, rateLimiter, profiles, availability }),
-    createEventType: makeCreateEventType({ auth, rateLimiter, profiles, eventTypes }),
-    updateEventType: makeUpdateEventType({ auth, rateLimiter, profiles, eventTypes }),
-    setEventTypeActive: makeSetEventTypeActive({ auth, rateLimiter, profiles, eventTypes }),
-    reorderEventTypes: makeReorderEventTypes({ auth, rateLimiter, profiles, eventTypes }),
-    deleteEventType: makeDeleteEventType({ auth, rateLimiter, profiles, eventTypes }),
-    replaceAvailabilityRules: makeReplaceAvailabilityRules({ auth, rateLimiter, profiles, availability }),
+    saveTimeZone: expiringProfileCache(makeSaveTimeZone({ auth, rateLimiter, profiles, availability })),
+    createEventType: expiringProfileCache(makeCreateEventType({ auth, rateLimiter, profiles, eventTypes })),
+    updateEventType: expiringProfileCache(makeUpdateEventType({ auth, rateLimiter, profiles, eventTypes })),
+    setEventTypeActive: expiringProfileCache(makeSetEventTypeActive({ auth, rateLimiter, profiles, eventTypes })),
+    reorderEventTypes: expiringProfileCache(makeReorderEventTypes({ auth, rateLimiter, profiles, eventTypes })),
+    deleteEventType: expiringProfileCache(makeDeleteEventType({ auth, rateLimiter, profiles, eventTypes })),
+    replaceAvailabilityRules: expiringProfileCache(
+      makeReplaceAvailabilityRules({ auth, rateLimiter, profiles, availability }),
+    ),
     addAvailabilityException: makeAddAvailabilityException({ auth, rateLimiter, profiles, availability, clock }),
     removeAvailabilityException: makeRemoveAvailabilityException({ auth, rateLimiter, profiles, availability }),
     qrPrintReady: env.QR_PRINT_READY,
   };
+}
+
+function turnstileVerifier() {
+  return makeTurnstileVerifier({
+    secretKey: env.TURNSTILE_SECRET_KEY,
+    fetch: globalThis.fetch,
+    timeoutMs: TURNSTILE_TIMEOUT_MS,
+  });
 }
 
 function visitorOf(headers: Headers): { userAgent: string | null; clientAddress: string } {
@@ -241,13 +301,14 @@ function visitorOf(headers: Headers): { userAgent: string | null; clientAddress:
 /**
  * Composition root of the public reads: no cookies, usable in static rendering. NFC and QR resolutions are read live
  * on every scan (no cache, no rate limit). The service_role client is created on demand, by the recordings, the
- * vCard rate limit and the contact form only.
+ * vCard rate limit, the contact form, the slot list's rate limit and the booking only.
  */
 export function createPublicContainer(): PublicContainer {
   const anonymous = createPublicSupabaseClient();
   const publicProfiles = makeCachedPublicProfileReader(
     makeSupabasePublicProfileReader(anonymous, env.NEXT_PUBLIC_SUPABASE_URL),
   );
+  const bookingPages = makeSupabasePublicBookingReader(anonymous);
   const getVCard = makeGetVCard({
     publicProfiles,
     profileUrl: (slug) => `${env.SITE_URL}/p/${slug}`,
@@ -290,14 +351,28 @@ export function createPublicContainer(): PublicContainer {
       const admin = createAdminClient();
       const captureLead = makeCaptureLead({
         rateLimiter: makeSupabaseRateLimiter(admin, env.RATE_LIMIT_SECRET),
-        challenge: makeTurnstileVerifier({
-          secretKey: env.TURNSTILE_SECRET_KEY,
-          fetch: globalThis.fetch,
-          timeoutMs: TURNSTILE_TIMEOUT_MS,
-        }),
+        challenge: turnstileVerifier(),
         leads: makeSupabaseLeadCapturer(admin),
       });
       return captureLead({ ...input, ...visitorOf(headers) });
+    },
+    getPublicBookingPage: makeGetPublicBookingPage({ pages: makeCachedPublicBookingReader(bookingPages) }),
+    listPublicSlots: async (input, headers) => {
+      const listPublicSlots = makeListPublicSlots({
+        rateLimiter: makeSupabaseRateLimiter(createAdminClient(), env.RATE_LIMIT_SECRET),
+        pages: bookingPages,
+        clock: { now: () => new Date() },
+      });
+      return listPublicSlots({ ...input, clientAddress: requestClientAddress(headers) });
+    },
+    bookSlot: async (input, headers) => {
+      const admin = createAdminClient();
+      const bookSlot = makeBookSlot({
+        rateLimiter: makeSupabaseRateLimiter(admin, env.RATE_LIMIT_SECRET),
+        challenge: turnstileVerifier(),
+        bookings: makeSupabaseSlotBooker(admin),
+      });
+      return bookSlot({ ...input, ...visitorOf(headers) });
     },
   };
 }

@@ -107,6 +107,9 @@ jobs:
         shell: bash
         run: |
           for attempt in 1 2 3; do
+            if [ "$attempt" -gt 1 ]; then
+              sudo dpkg --configure -a || true
+            fi
             if timeout -k 10 240 pnpm exec playwright install --with-deps chromium webkit; then
               exit 0
             fi
@@ -120,6 +123,9 @@ jobs:
         shell: bash
         run: |
           for attempt in 1 2 3; do
+            if [ "$attempt" -gt 1 ]; then
+              sudo dpkg --configure -a || true
+            fi
             if timeout -k 10 240 pnpm exec playwright install-deps chromium webkit; then
               exit 0
             fi
